@@ -1,0 +1,20 @@
+# Private notebook data and local backups never belong in this repository.
+notebook-data/
+backups/
+outputs/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*backup*.json
+notebook-latest.json
+.local-*
+.env
+.env.*
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+
+.public-export-*/
+.previous-public-export/

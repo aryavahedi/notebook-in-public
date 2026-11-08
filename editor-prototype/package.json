@@ -1,0 +1,21 @@
+{
+  "name": "living-folio-editor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild editor-src/continuous.js --bundle --format=iife --outfile=continuous-editor.js && esbuild editor-src/reader.js --bundle --format=iife --outfile=continuous-reader.js && node scripts/sync-website.mjs",
+    "test": "node --test editor-src/*.test.js && python3 -m unittest discover -p \"test_*.py\""
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.0.0",
+    "@tiptap/starter-kit": "^3.0.0"
+  },
+  "devDependencies": {
+    "@tiptap/extension-table": "^3.33.0",
+    "@tiptap/extension-task-item": "^3.33.0",
+    "@tiptap/extension-task-list": "^3.33.0",
+    "@tiptap/markdown": "^3.33.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.1.0"
+  }
+}

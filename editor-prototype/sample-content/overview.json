@@ -1,0 +1,925 @@
+{
+  "sampleSet": "living-folio-overview-v1",
+  "entries": [
+    {
+      "sampleKey": "notebook",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Essay",
+      "title": "The notebook as a way of thinking",
+      "description": "On unfinished thoughts, attention, and why a notebook should be more than storage.",
+      "originalDate": "2026-11-06",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {
+            "source": {
+              "id": "source",
+              "kind": "footnote",
+              "text": "Demonstration source note: this sample essay was written for the prototype. Replace it with your own words and sources when preparing real writing.",
+              "label": "In the margin",
+              "showLabel": true
+            },
+            "question": {
+              "id": "question",
+              "kind": "footnote",
+              "text": "The companion note develops the woodpecker question as a small exercise in looking closely.",
+              "label": "In the margin",
+              "showLabel": true
+            },
+            "workbench": {
+              "id": "workbench",
+              "kind": "side",
+              "text": "Leave an idea visible for a day. It may ask a better question the second time you pass it.",
+              "label": "A small experiment",
+              "showLabel": true
+            },
+            "loose": {
+              "id": "loose",
+              "kind": "side",
+              "text": "Connections can be useful before they become explanations.",
+              "label": "A loose thread",
+              "showLabel": true
+            }
+          }
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sampled3952813302b4441894b912ade5dca19",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Illustrative sample writing for exploring this website.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sampled679e4a2ac2244dc8102ce1e3c87b167",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "For a long time, I thought a notebook was somewhere to keep an idea safe. A sentence arrived; I wrote it down. A useful observation appeared; I gave it a page. The book filled slowly, and I felt that something had been accomplished."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplebfaa93044f3f4e6fb217a89e8fdb5977",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "But keeping a thought is different from working on it. When I returned to those pages, many of the sentences seemed complete only because I had stopped asking questions. The notebook had preserved the first version of an idea, including all the things I had failed to notice."
+              },
+              {
+                "type": "footnote",
+                "attrs": {
+                  "id": "source"
+                }
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "blockId": "samplef2138a9ec2de4bc98a9581b952d0dbf9",
+              "annotations": [],
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Give a thought somewhere to go"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplef838ce9d48244342a5b15ab60cc4f6a1",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "I am beginning to think of a notebook as "
+              },
+              {
+                "type": "text",
+                "text": "a workbench rather than a cupboard",
+                "marks": [
+                  {
+                    "type": "annotation",
+                    "attrs": {
+                      "id": "workbench"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": ". A place to put something unfinished where I can turn it around. A drawing can interrupt an argument. A question can remain a question for a while. Two unrelated observations can share a page without being forced into a conclusion."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sampled03349d9908247fb8b08a7a952de5a87",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The important part is the return. A page becomes interesting when the person reading it is no longer quite the person who wrote it. A week is sometimes enough. A conversation, a failed attempt, or an afternoon making something with my hands can change the meaning of an old sentence."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "attrs": {
+              "blockId": "sampled762b251a56b47ec866910b2a67f5350",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "blockId": "sample6f3c241d984e4a3cbe3d888578f88fff",
+                  "annotations": []
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A good page does not only remember what I thought. It gives me a reason to think again."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "blockId": "sampleb6c107d0d4af4b80b3fcf75d2704c52e",
+              "annotations": [],
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Keep the edges open"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplea9be01f8acff4513b71006ed19e840ed",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "This changes the kind of things worth writing down. Not only conclusions, but the small instructions that might lead somewhere: look at the underside; draw the joint again; find out how the woodpecker’s tongue works."
+              },
+              {
+                "type": "footnote",
+                "attrs": {
+                  "id": "question"
+                }
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplec4a30deeb68f4a0ba6768594f3dc7104",
+              "annotations": [
+                "loose"
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "There is room here for an essay, a diagram, an unfinished object, and a note that turns out to be wrong. They do not need to agree yet. Their closeness may be the useful thing."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample7d4eaa19a29842a0bb2ec1d2892589c5",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "What I want from this notebook is not an archive that proves I have been thinking. I want a practice that changes what I notice when I leave the page."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "woodpecker",
+        "unfinished",
+        "shapes"
+      ],
+      "published": null,
+      "dirty": false
+    },
+    {
+      "sampleKey": "woodpecker",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Note",
+      "title": "Describe the tongue of the woodpecker",
+      "description": "A small question, carried around for a few days. A reminder to look more closely.",
+      "originalDate": "2026-11-05",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {
+            "practice": {
+              "id": "practice",
+              "kind": "side",
+              "text": "This note connects back to the essay about notebooks and forward to the sketch about two shapes.",
+              "label": "Try this",
+              "showLabel": true
+            }
+          }
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample58f682c8128f4c64941a1872bdaae84d",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Illustrative sample writing for exploring this website.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplecd1f59ece5e14701b4dad46f37c72341",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "I like a question that is small enough to carry in a pocket. Not “How does nature work?” but “What happens when this particular bird reaches into a tree?”"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample79e4e6c96e6c43f1aa39123cf29cd047",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The smaller question asks something more useful of me. It asks me to look, sketch, read, and admit what I cannot yet explain. It gives attention a direction without promising an answer."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplebb9ff6d9649a40eab47dd84d4ec801eb",
+              "annotations": [
+                "practice"
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Today’s version of the exercise: choose one ordinary thing and describe it without reaching for a general lesson."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "attrs": {
+              "blockId": "sample59d06f586ae643469a0449bd8aea50a9",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "samplef9b19be831f24541acde735917bf1ce3",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Start with what can be seen."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "sample6d76b18b4a204d59aa35854119e0bbd0",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Draw the part that is difficult to describe."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "sample5f165b36cdbe4c6886cc37f1b726a0a2",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Write down the next question, not a conclusion."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample60ff3fc031af4a358aa2bbb33405619c",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A handle. A hinge. The way a leaf joins its stem. There are enough questions within reach for a lifetime."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "notebook",
+        "shapes"
+      ],
+      "published": null,
+      "dirty": false
+    },
+    {
+      "sampleKey": "unfinished",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Note",
+      "title": "A place for the unfinished",
+      "description": "Some things need to stay on the workbench a little longer.",
+      "originalDate": "2026-11-03",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {
+            "waiting": {
+              "id": "waiting",
+              "kind": "side",
+              "text": "Unfinished is not the same as abandoned. The difference may be attention.",
+              "label": "Still taking shape",
+              "showLabel": true
+            }
+          }
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplea2976500c2774d5bbddc1d0e4c799a6b",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Illustrative sample writing for exploring this website.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample16e90bd8f3d04e0da3a46fece2e49e98",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "There is a particular relief in putting a half-made thing down without putting it away. The next step can remain a little uncertain while the work stays visible."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample666c3df4a21742229b97a1d62253e40d",
+              "annotations": [
+                "waiting"
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "I used to read that uncertainty as a failure of discipline. Sometimes it is. But sometimes the unfinished part is telling me where the interesting question begins."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample5192ee13c5ee4e6a96ac8e52f69d7f45",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The distinction may be whether I return. An unfinished thing that I keep meeting can become a conversation. An unfinished thing that I carefully hide becomes an excuse."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample62a672f3d2bc46b1ad7075c9b795e50f",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "For now, I am leaving a small space on the desk for work that has not decided what it wants to be."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "notebook",
+        "slowly"
+      ],
+      "published": null,
+      "dirty": false
+    },
+    {
+      "sampleKey": "slowly",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Essay",
+      "title": "On doing one thing slowly",
+      "description": "A study in repetition, feedback, and the useful limits of a small task.",
+      "originalDate": "2026-11-02",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {
+            "feedback": {
+              "id": "feedback",
+              "kind": "side",
+              "text": "A useful note records the conditions too: what changed, what stayed the same, and what is still uncertain.",
+              "label": "On the bench",
+              "showLabel": true
+            }
+          }
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample4bfbbaefaf724102a622430ed6c27974",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Illustrative sample writing for exploring this website.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplecccdf0c2a4214599b2794ad4c60afa85",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A small task has an advantage over a grand intention: it can answer back. Draw the same curve ten times and the tenth curve knows something the first did not. The paper makes the difference visible."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplea740993169184c1c8cb98782cd6a1546",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Speed can hide this conversation. I finish the gesture before I have noticed which part of it needs attention. Slowing down does not make the work meaningful by itself, but it lets the feedback arrive."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "blockId": "sample880cf811a3a84bd4a23f1b320592227a",
+              "annotations": [],
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A modest practice"
+              }
+            ]
+          },
+          {
+            "type": "orderedList",
+            "attrs": {
+              "blockId": "sample153e8e75179042178ea9c95bd612b153",
+              "annotations": [],
+              "start": 1
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "sample17bb5a554748478da9bb373c550854e8",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Choose one gesture that takes less than a minute."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "sample83c99fee5ec04645a5544f1576c1ec97",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Repeat it until a difference becomes visible."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "blockId": "sampledf9ca2c913ae40dc9c27eaba2d0a5656",
+                      "annotations": []
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Change one thing, and notice what follows."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample0b36f16b99a2438db02ac84514af65fd",
+              "annotations": [
+                "feedback"
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The point is not to perform patience. The point is to make a change small enough to understand. A line that wavers, a tool that catches, a sentence that refuses to settle: each offers a particular kind of information."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "attrs": {
+              "blockId": "sample1961158cd6fd4b32954b1bc6d721c1fb",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "blockId": "sample3e3e3ec0d27147098a40e6f545e3418c",
+                  "annotations": []
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Work at a speed where you can still hear what the material is telling you."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample7762094aa5454c2d85856d794de7420d",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "This is another reason to keep a notebook nearby. The page can catch the observation before I turn it into a rule. “This worked today” is often more honest than “This is how it works.”"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample5d690eeb71c942cd8a9b29cbb21a0d49",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A finished object may be the result. A more careful way of noticing may be the thing I keep."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "unfinished",
+        "notebook"
+      ],
+      "published": null,
+      "dirty": false
+    },
+    {
+      "sampleKey": "shapes",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Sketch",
+      "title": "A thought in two shapes",
+      "description": "A circle, a square, and the questions that appear where they meet.",
+      "originalDate": "2026-11-05",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {
+            "drawing": {
+              "id": "drawing",
+              "kind": "side",
+              "text": "The latest published sketch also appears in the homepage margin.",
+              "label": "From the sketchbook",
+              "showLabel": true
+            }
+          }
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample524032a23c61455b935fde442c799ddc",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Illustrative sample writing for exploring this website.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "figure",
+            "attrs": {
+              "blockId": "sample124a0b539db940709d1ce340f9c134b8",
+              "annotations": [],
+              "src": "data:image/png;base64,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",
+              "alt": "A cobalt circle and square overlap, crossed by pale diagonals and dotted axes, with a small arrow and hand-drawn marks.",
+              "caption": "Study 01 · A thought in two shapes. Original geometric drawing made for this prototype."
+            }
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample4516c9efb8754ed4829b2d2ab08d84a4",
+              "annotations": [
+                "drawing"
+              ]
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The circle offers one kind of boundary; the square offers another. Neither is more complete. The interesting part is what becomes visible when they share the same centre."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sampleacca7cf3ad894cd7bfa379e53ad487b4",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "I drew the diagonals last. They make the centre feel like an answer, although the drawing began as a question. Next time I might leave them out."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample20443dbaaa9145939f2c0404b463116a",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A drawing does not always need to illustrate a thought that already exists. Sometimes it is how the thought arrives."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "woodpecker",
+        "notebook"
+      ],
+      "published": null,
+      "dirty": false
+    },
+    {
+      "sampleKey": "draft",
+      "sampleSet": "living-folio-overview-v1",
+      "schemaVersion": 2,
+      "type": "Note",
+      "title": "A thought I’m not ready to finish",
+      "description": "An unpublished sample draft, visible only in the Writing Room.",
+      "originalDate": "2026-11-06",
+      "body": {
+        "type": "doc",
+        "attrs": {
+          "annotations": {}
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample7fb5806c928d45a5b9ab0b728dd5a5e6",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Unpublished sample draft.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "sample059de33d018f4c3ba75f88763c221d75",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Perhaps a personal website should be allowed to change its mind. I have not worked out the next sentence yet."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "blockId": "samplefa59518f4f634ea79b5a48ec2befed41",
+              "annotations": []
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "This page is deliberately left unpublished so you can compare writing, previewing, and publishing."
+              }
+            ]
+          }
+        ]
+      },
+      "paragraphs": [],
+      "notes": [],
+      "connected": [
+        "unfinished"
+      ],
+      "published": null,
+      "dirty": false
+    }
+  ],
+  "laterAddition": {
+    "type": "paragraph",
+    "attrs": {
+      "blockId": "sampled2157372a0d94095aa3e4852d5196b2e",
+      "annotations": [
+        "later"
+      ]
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "A later addition: leaving something visible is not the same as attending to it. I need a small habit of returning—a date in the diary, a question in the margin, or simply the decision to open the notebook before opening another tab."
+      }
+    ]
+  }
+}
