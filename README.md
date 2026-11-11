@@ -21,7 +21,7 @@ Only explicitly published snapshots are included. The local Writing Room, notebo
 From this repository, run:
 
 ```sh
-python3 editor-prototype/server.py --port 4321
+python3 editor-prototype/server.py --port 4321 --github-repo-dir .
 ```
 
 Open http://localhost:4321/ for writing and http://localhost:4321/published/ for the local published site. Keep the server running while writing. It stores notebook-data/ beside the editor; this folder is ignored by Git. Restore a personal structured JSON notebook backup through the Writing Room to load existing writing into a fresh checkout.
@@ -30,20 +30,13 @@ The original notebook on Arya’s Mac continues to be served from the existing p
 
 ## Update the live website
 
-1. Write, preview, and **Publish** in the Writing Room. This updates the local published site.
-2. With that server running, refresh the public files:
+Use **Publish to website** in the connected Writing Room. Drafts finish saving before publication. The service creates a public snapshot, exports only explicitly published pages, commits docs/ and deploys through GitHub Pages. It shows Deploying and then Live; **View live page** opens the published entry. Typing stays available while the update runs, and later changes remain private until another publication.
 
-```sh
-python3 scripts/update-website.py
-```
+**Retry website update** retries the saved export if the connection or build fails; it does not send newer private edits or add an editorial revision. Interrupted jobs resume when the server restarts. **Unpublish** removes a page online while preserving your private draft.
 
-Review the result, then commit and push docs/ with Git, or run the explicit publishing command:
+The server remembers its checkout path under the ignored notebook-data/ folder. It uses the existing GitHub CLI sign-in; no token is included in this repository or sent to the browser. See editor-prototype/LIVE-PUBLISHING.md for details.
 
-```sh
-python3 scripts/update-website.py --publish
-```
-
-GitHub Pages then deploys the pushed docs/ folder. Local Publish does not send writing to GitHub by itself. This separation lets drafts remain private and gives the live site an explicit update step. The script uses the published-only ZIP export; it never reads or uploads the private notebook database.
+The manual alternative remains `python3 scripts/update-website.py --publish` with the Writing Room running. It exports the whole published site, commits docs/ and pushes to GitHub.
 
 ## Source development
 

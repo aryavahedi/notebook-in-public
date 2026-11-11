@@ -15,6 +15,45 @@
     return number ? prefix(entry2.type) + displayNumber(number) : null;
   }
 
+  // editor-src/publication-status.js
+  var deploying = (job) => ["queued", "preparing", "pushing", "deploying"].includes(job?.status);
+  function publicationStatus(entry2, connection2) {
+    const page = connection2?.pages?.[entry2.entryId] || {}, job = connection2?.job, active = deploying(job), ownJob = job?.entryId === entry2.entryId;
+    const local = entry2.publication?.status === "published";
+    let label = "Draft", message = "Saved privately on this Mac.", button = "Publish to website \u2197";
+    if (entry2.publication?.status === "unpublished") {
+      label = page.isLive ? "Unpublished changes" : "Unpublished";
+      message = page.isLive ? "Removal is saved locally. Publish the removal to update the live website." : "This page is not on the website. Your writing is kept privately.";
+      if (page.isLive) button = "Publish removal \u2197";
+    } else if (local) {
+      label = page.currentIsLive && !entry2.dirty ? "Live" : "Unpublished changes";
+      message = label === "Live" ? `Live on your website \xB7 version ${entry2.publication.version}` : page.isLive ? "Your changes stay private until you publish an update." : "A published copy is saved on this Mac. Send it to the live website when ready.";
+      button = page.isLive ? "Update live website \u2197" : "Publish to website \u2197";
+    }
+    if (active) {
+      if (ownJob) label = "Deploying";
+      message = job.message || "Updating the website. You can keep writing.";
+      button = "Website updating\u2026";
+    }
+    if (job?.status === "error") message = job.error || job.message;
+    else if (connection2?.checkError && !active) message = connection2.checkError;
+    else if (connection2?.checking && !connection2.live) message = "Checking the live website\u2026";
+    if (connection2 && !connection2.enabled) {
+      button = local ? "Update local copy" : "Publish local copy";
+      message = "Online publishing is not connected. Published copies stay on this Mac.";
+      if (local) label = entry2.dirty ? "Unpublished changes" : "Published locally";
+    }
+    return {
+      label,
+      message,
+      button,
+      disabled: active || !connection2,
+      canView: !!page.isLive,
+      retry: job?.status === "error" ? "job" : connection2?.checkError ? "connection" : null,
+      liveURL: connection2?.websiteURL ? connection2.websiteURL + "#/entry/" + encodeURIComponent(entry2.entryId) : null
+    };
+  }
+
   // node_modules/@tiptap/core/dist/rolldown-runtime-D7D4PA-g.js
   var __defProp = Object.defineProperty;
   var __exportAll = (all, no_symbols) => {
@@ -28260,6 +28299,9 @@ ${line}
   var changeCounter = 0;
   var figurePosition = null;
   var publicationAction = "publish";
+  var connection = null;
+  var deploymentTimer;
+  var submittingPublication = false;
   var status = (t) => $2("#save-status").textContent = t;
   var notify = (t) => {
     $2("#toast").textContent = t;
@@ -28292,8 +28334,49 @@ ${line}
   }
   function markDirty() {
     entry.dirty = true;
-    $2(".status").textContent = "UNPUBLISHED CHANGES";
+    renderPublication();
   }
+  function renderPublication() {
+    if (!entry) return;
+    const view = publicationStatus(entry, connection);
+    $2(".status").textContent = view.label.toUpperCase();
+    $2(".status").dataset.state = view.label;
+    $2("#publish").textContent = view.button;
+    $2("#publish").disabled = view.disabled || submittingPublication;
+    $2("#deployment-message").textContent = view.message;
+    $2("#view-live").hidden = !view.canView;
+    if (view.liveURL) $2("#view-live").href = view.liveURL;
+    $2("#retry-deployment").hidden = !view.retry;
+    $2("#retry-deployment").disabled = submittingPublication;
+    $2("#publication-status").textContent = view.label + (entry.publication?.version ? " \xB7 version " + entry.publication.version : "");
+  }
+  async function refreshDeployment() {
+    clearTimeout(deploymentTimer);
+    try {
+      const response = await fetch("/api/deployment");
+      if (!response.ok) throw Error();
+      connection = await response.json();
+    } catch {
+      connection = { ...connection, enabled: connection?.enabled ?? true, checkError: "Could not check the website connection. Your writing stays saved locally." };
+    }
+    renderPublication();
+    deploymentTimer = setTimeout(refreshDeployment, deploying(connection?.job) || connection?.checking ? 1500 : 15e3);
+  }
+  $2("#retry-deployment").onclick = async () => {
+    const retryJob = connection?.job?.status === "error";
+    $2("#retry-deployment").disabled = true;
+    try {
+      const response = await fetch(retryJob ? "/api/deployment/retry" : "/api/deployment/refresh", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(retryJob ? { jobId: connection.job.id } : {}) });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error);
+      connection = result;
+      renderPublication();
+      refreshDeployment();
+    } catch (error) {
+      notify(error.message || "Could not retry. Your writing is saved on this Mac.");
+      $2("#retry-deployment").disabled = false;
+    }
+  };
   function sync() {
     if (!entry || !ready) return;
     pending = true;
@@ -28368,8 +28451,7 @@ ${line}
       }
       return false;
     } }, onUpdate() {
-      entry.dirty = true;
-      $2(".status").textContent = "UNPUBLISHED CHANGES";
+      markDirty();
       sync();
       scheduleSidebar();
     }, onSelectionUpdate() {
@@ -28398,6 +28480,7 @@ ${line}
       area.style.height = area.scrollHeight + "px";
     }
     $2("#title").focus();
+    renderPublication();
   }
   var sidebarTimer;
   function scheduleSidebar() {
@@ -28424,6 +28507,7 @@ ${line}
     $2("#unpublish").hidden = entry.publication?.status !== "published";
     $2("#publication-status").textContent = entry.publication?.status === "published" ? `Published \xB7 version ${entry.publication.version}` : entry.publication?.status === "unpublished" ? "Withdrawn from the website" : "Not published";
     $2("#publication-events").innerHTML = (entry.publication?.events || []).slice().reverse().map((e) => `<p class="hint">${esc(e.kind)} \xB7 ${esc(new Date(e.at).toLocaleDateString())} \xB7 v${e.version}</p>`).join("");
+    renderPublication();
   }
   function remember() {
     selection = editor.state.selection.toJSON();
@@ -28570,6 +28654,7 @@ ${line}
       await flush();
       $2(".prototype").textContent = "LOCAL NOTEBOOK \xB7 ON YOUR MAC";
       $2(".workspace").inert = false;
+      refreshDeployment();
     } catch (e) {
       status(e.message);
       notify(e.message);
@@ -28792,42 +28877,54 @@ ${line}
   function publicationDialog(action = "publish") {
     publicationAction = action;
     $2("#publish-error").textContent = "";
-    const published = entry.publication?.status === "published";
+    const online = connection?.enabled, published = entry.publication?.status === "published";
     $2("#publish-heading").textContent = action === "unpublish" ? "Remove this page from the website?" : published ? "Publish your changes?" : "Ready to publish this page?";
-    $2("#confirm-publish").textContent = action === "unpublish" ? "Unpublish" : published ? "Publish update" : "Publish";
+    $2("#publish-description").textContent = online ? action === "unpublish" ? "Removes this page from your live website. Your writing remains saved privately." : "Sends your published website to GitHub Pages. Your other drafts stay private." : "Updates the published copy on this Mac. Online publishing is not connected.";
+    $2("#publish-detail").textContent = online ? "This also syncs other pages you have already marked for publication. You can keep writing while GitHub deploys." : "Your draft stays separate until you publish an update.";
+    $2("#confirm-publish").textContent = action === "unpublish" ? "Unpublish" : online ? "Publish to website" : published ? "Update local copy" : "Publish local copy";
     $2("#publish-dialog").showModal();
   }
-  $2("#publish").onclick = () => publicationDialog();
+  $2("#publish").onclick = () => publicationDialog(entry.publication?.status === "unpublished" && connection?.pages?.[entry.entryId]?.isLive ? "unpublish" : "publish");
   $2("#unpublish").onclick = () => publicationDialog("unpublish");
   $2("#cancel-publish").onclick = () => $2("#publish-dialog").close();
+  function adoptPublication(result) {
+    if (!result.notebook) return;
+    const activeId = entry.entryId;
+    revision = result.revision;
+    book = result.notebook.entries;
+    entry = book.find((e) => e.entryId === activeId);
+    $2(".folio").textContent = folioLabel(entry);
+    editor.view.dispatch(editor.state.tr.setMeta("folio-number", true));
+    if (result.deployment) connection = result.deployment;
+    renderSidebar();
+    renderPublication();
+    status("Saved to your Mac");
+  }
   $2("#confirm-publish").onclick = async () => {
     const button = $2("#confirm-publish");
     button.disabled = true;
+    submittingPublication = true;
     $2(".workspace").inert = true;
+    renderPublication();
+    const requestId = uid();
     try {
       for (let i = 0; busy && i < 100; i++) await new Promise((r) => setTimeout(r, 50));
       await flush();
       if (pending || busy) throw Error("The current draft must finish saving before publishing. Retry after saving.");
-      const response = await fetch("/api/publication", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, entryId: entry.entryId, action: publicationAction }) });
+      const response = await fetch("/api/publication", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, entryId: entry.entryId, action: publicationAction, destination: connection?.enabled ? "live" : "local", requestId }) });
       const result = await response.json();
+      adoptPublication(result);
       if (!response.ok) throw Error(result.error || "Publication failed");
-      const activeId = entry.entryId;
-      revision = result.revision;
-      book = result.notebook.entries;
-      entry = book.find((e) => e.entryId === activeId);
-      $2(".folio").textContent = folioLabel(entry);
-      editor.view.dispatch(editor.state.tr.setMeta("folio-number", true));
-      $2(".status").textContent = entry.publication.status === "published" ? "PUBLISHED" : "WITHDRAWN";
-      $2("#publish").textContent = entry.publication.status === "published" ? "Update website \u2197" : "Publish \u2197";
-      renderSidebar();
-      status("Saved to your Mac");
       $2("#publish-dialog").close();
-      notify(publicationAction === "unpublish" ? "Page removed from the published website." : result.changed ? "Published website updated on your Mac." : "This version is already published.");
+      notify(connection?.enabled ? "Your website update has started. You can keep writing." : result.changed ? "Published copy updated on your Mac." : "This version is already published.");
+      refreshDeployment();
     } catch (error) {
       $2("#publish-error").textContent = error.message;
     } finally {
       button.disabled = false;
+      submittingPublication = false;
       $2(".workspace").inert = false;
+      renderPublication();
     }
   };
   $2("#export").onclick = $2("#export-mobile").onclick = $2("#export-page").onclick = () => download(entry.type.toLowerCase() + "-" + (folioNumber(entry) ? String(folioNumber(entry)) : "draft") + ".json", capture());

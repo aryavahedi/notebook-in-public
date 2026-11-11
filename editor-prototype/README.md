@@ -12,7 +12,11 @@ python3 server.py --port 4321
 
 Open http://localhost:4321/?v=publishing-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
 
-Publish creates a local published version. Update website publishes later changes. Unpublish withdraws a page while preserving your writing. Open the published site at http://localhost:4321/published/ . Download published website exports a static ZIP ready for a hosting service. The live hosted website is not deployed automatically yet.
+With a GitHub checkout connected, **Publish to website** creates a published snapshot and sends the public-only export to GitHub Pages. The editor shows Draft, Unpublished changes, Deploying or Live, with a View live page link and a retry action. You can keep writing while deployment runs; later edits remain private. Unpublish removes the page online while preserving the draft.
+
+To connect a checkout for the first time, add `--github-repo-dir /path/to/notebook-in-public` when starting the server. The connection is remembered in the private notebook-data folder. No tokens are stored in the browser or project source; the service uses the existing GitHub CLI sign-in. Without a checkout, the editor labels publication as a local copy.
+
+Download published website still exports a static ZIP. See LIVE-PUBLISHING.md for background jobs, retry behavior and setup.
 
 ## Check
 

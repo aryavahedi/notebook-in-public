@@ -18,3 +18,8 @@ __pycache__/
 
 .public-export-*/
 .previous-public-export/
+
+# Local connection and deployment state
+publishing-config.json
+website-deployment.json
+pending-website.zip

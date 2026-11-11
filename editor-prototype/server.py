@@ -4,9 +4,15 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlsplit, unquote
 from publishing import catalogue, publish_entry, migrate_folios
+from deployment import Deployments, signatures
 ROOT=Path(__file__).resolve().parent
-parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=4322);parser.add_argument('--data-dir',default=str(ROOT.parent/'notebook-data'));args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=4321);parser.add_argument('--data-dir',default=str(ROOT.parent/'notebook-data'));parser.add_argument('--github-repo-dir');args=parser.parse_args()
 DATA=Path(args.data_dir);DATA.mkdir(parents=True,exist_ok=True);DB=DATA/'notebook.sqlite3'
+configuration=DATA/'publishing-config.json'
+if args.github_repo_dir:configuration.write_text(json.dumps({'repositoryPath':str(Path(args.github_repo_dir).resolve())}))
+try:repository=json.loads(configuration.read_text()).get('repositoryPath')
+except (OSError,ValueError):repository=None
+deployments=Deployments(DATA,repository)
 with sqlite3.connect(DB) as db:db.execute('CREATE TABLE IF NOT EXISTS versions (revision INTEGER PRIMARY KEY AUTOINCREMENT, saved_at TEXT DEFAULT CURRENT_TIMESTAMP, content TEXT NOT NULL)')
 def latest(db):
  row=db.execute('SELECT revision,content FROM versions ORDER BY revision DESC LIMIT 1').fetchone()
@@ -17,6 +23,11 @@ with sqlite3.connect(DB) as db:
  if book:
   migrated,changed=migrate_folios(book)
   if changed:db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(migrated),))
+deployments.start()
+def deployment_status(book):
+ state=deployments.snapshot();live=(state.get('live') or {}).get('entries',{});current=signatures(catalogue(book or {'entries':[]})['entries'])
+ state['pages']={e['entryId']:{'isLive':e['entryId'] in live,'currentIsLive':current.get(e['entryId'])==live[e['entryId']] if e['entryId'] in live else False} for e in (book or {}).get('entries',[])}
+ return state
 def public_files(book):
  """Explicit allowlist: no editor, database, backups, sources or draft payloads."""
  site=ROOT/'site';files={}
@@ -49,6 +60,9 @@ class Handler(SimpleHTTPRequestHandler):
   if path=='/api/notebook':
    with sqlite3.connect(DB) as db:revision,book=latest(db)
    return self.send_json(200,{'revision':revision,'notebook':book})
+  if path=='/api/deployment':
+   with sqlite3.connect(DB) as db:_,book=latest(db)
+   return self.send_json(200,deployment_status(book))
   if path=='/published':
    self.send_response(302);self.send_header('Location','/published/');self.end_headers();return
   if path.startswith('/published/') or path=='/api/export-website':
@@ -86,18 +100,44 @@ class Handler(SimpleHTTPRequestHandler):
   except Exception:return self.send_json(500,{'error':'Could not save to disk. Export a backup and retry.'})
  def do_POST(self):
   if not self.allowed() or self.headers.get('Content-Type')!='application/json':return self.send_json(403,{'error':'Local JSON requests only'})
+  if self.path in ('/api/deployment/retry','/api/deployment/refresh'):
+   try:
+    payload=self.read_json()
+    if self.path.endswith('/retry'):deployments.retry(payload.get('jobId'))
+    else:deployments.refresh()
+    with sqlite3.connect(DB) as db:_,book=latest(db)
+    return self.send_json(202,deployment_status(book))
+   except (ValueError,KeyError,TypeError) as error:return self.send_json(400,{'error':str(error)})
   if self.path!='/api/publication':return self.send_json(404,{'error':'Not found'})
   try:
    payload=self.read_json()
-   with sqlite3.connect(DB) as db:
-    db.execute('BEGIN IMMEDIATE');revision,book=latest(db)
-    if payload.get('revision')!=revision:return self.send_json(409,{'error':'A newer notebook version exists. Back up your draft before reloading.'})
-    if not book:raise ValueError('Save your entry first.')
-    updated,entry,changed=publish_entry(book,payload.get('entryId'),payload.get('action','publish'))
-    # Prepare the exact same published-only projection used by export before committing.
-    public_files(updated)
-    if changed:revision=db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(updated),)).lastrowid
-   return self.send_json(200,{'revision':revision,'notebook':updated,'changed':changed,'websiteURL':'/published/'})
+   live=payload.get('destination')=='live'
+   with deployments.lock:
+    if live:
+     if not deployments.enabled:raise ValueError('Online publishing is not connected on this Mac.')
+     previous=deployments.state.get('job') or {}
+     if payload.get('requestId') and previous.get('requestId')==payload['requestId']:
+      with sqlite3.connect(DB) as db:revision,book=latest(db)
+      return self.send_json(200,{'revision':revision,'notebook':book,'changed':False,'deployment':deployment_status(book)})
+     if deployments.busy() or deployments.state.get('checking'):return self.send_json(409,{'error':'A website update is already running. You can keep writing while it finishes.'})
+    with sqlite3.connect(DB) as db:
+     db.execute('BEGIN IMMEDIATE');revision,book=latest(db)
+     if payload.get('revision')!=revision:return self.send_json(409,{'error':'A newer notebook version exists. Back up your draft before reloading.'})
+     if not book:raise ValueError('Save your entry first.')
+     updated,entry,changed=publish_entry(book,payload.get('entryId'),payload.get('action','publish'))
+     files=public_files(updated)
+     if updated!=book:revision=db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(updated),)).lastrowid
+    result={'revision':revision,'notebook':updated,'changed':changed,'websiteURL':'/published/'}
+    if live:
+     try:
+      # Persist a frozen public-only export before responding. Later typing cannot enter this job.
+      deployments.enqueue(files,entry['entryId'],payload.get('action','publish'))
+      deployments.state['job']['requestId']=payload.get('requestId');deployments._save()
+     except Exception:
+      result.update(error='Your published copy is saved on this Mac, but the online update could not start. Retry publishing.')
+      return self.send_json(500,result)
+     result['deployment']=deployment_status(updated)
+   return self.send_json(202 if live else 200,result)
   except (ValueError,KeyError,TypeError) as error:return self.send_json(400,{'error':str(error)})
   except Exception:return self.send_json(500,{'error':'Publication failed. The previous website is unchanged; retry after rebuilding the project.'})
 print(f'Writing room: http://localhost:{args.port}/',flush=True)

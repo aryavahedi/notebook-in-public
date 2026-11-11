@@ -61,6 +61,7 @@ def publish_entry(book,entry_id,action='publish',at=None):
  if entry is None:raise ValueError('Entry not found.')
  previous=entry.get('publication') or {};at=at or now();events=deepcopy(previous.get('events',[]))
  if action=='unpublish':
+  if previous.get('status')=='unpublished':return book,entry,False
   if previous.get('status')!='published':raise ValueError('This entry is not published.')
   events.append({'kind':'unpublish','at':at,'version':previous.get('version',1)})
   entry['publication']={**previous,'status':'unpublished','events':events};entry['dirty']=True
@@ -70,6 +71,7 @@ def publish_entry(book,entry_id,action='publish',at=None):
   if not valid_number(number):number=next_folio(book,entry['type']);assignments[entry['type']]=number
   entry['folioNumber']=number;entry['folioType']=entry['type'];snapshot['folioNumber']=number
   if previous.get('status')=='published' and content_hash(snapshot)==content_hash(entry.get('published',{})):
+   entry['dirty']=False
    return book,entry,False
   version=previous.get('version',0)+1
   kind='publish' if version==1 else 'republish' if previous.get('status')=='unpublished' else 'update'

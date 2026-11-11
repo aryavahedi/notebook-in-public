@@ -1,3 +1,9 @@
+# Publishing
+
+Direct publication to GitHub Pages is now available from the local Writing Room. See [LIVE-PUBLISHING.md](LIVE-PUBLISHING.md) for the current workflow, setup, durable jobs and retry behavior. The original hosted chatgpt.site prototype is separate.
+
+The notes below describe the local snapshot/export foundation, which is retained underneath online publication.
+
 # Publishing integration — 6 November 2026
 
 The Writing Room now publishes entries into a separate local website at `/published/`. The hosted chatgpt.site website is not automatically deployed by this action.
