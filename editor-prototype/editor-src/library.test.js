@@ -20,3 +20,8 @@ test('Trash is separate from normal search and preserves all original entries',(
  const a=make('041','Note','Keep','Words','2026-11-01'),b=make('042','Sketch','Remove','Lines','2026-11-02');b.trashedAt='2026-11-17';
  assert.deepEqual(libraryEntries([a,b]),[a]);assert.deepEqual(libraryEntries([a,b],{trash:true}),[b]);assert.deepEqual(libraryEntries([a,b],{query:'Remove'}),[]);
 });
+
+test('permanently deleted reservations appear in neither Library nor Trash',()=>{
+ const e=make('041','Note','','','2026-11-17');e.trashedAt=true;e.deletedAt='2026-11-17';
+ assert.deepEqual(libraryEntries([e]),[]);assert.deepEqual(libraryEntries([e],{trash:true}),[]);
+});

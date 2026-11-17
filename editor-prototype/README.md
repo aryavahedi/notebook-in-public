@@ -16,7 +16,7 @@ npm run build
 python3 server.py --port 4321
 ```
 
-Open http://localhost:4321/?v=trash-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
+Open http://localhost:4321/?v=delete-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
 
 With a GitHub checkout connected, **Publish to website** creates a published snapshot and sends the public-only export to GitHub Pages. The editor shows Draft, Unpublished changes, Deploying or Live, with a View live page link and a retry action. You can keep writing while deployment runs; later edits remain private. Unpublish removes the page online while preserving the draft.
 
@@ -34,7 +34,7 @@ The **+ New** menu remains in the writing toolbar while you scroll. The Library 
 
 In Library, use **Move to Trash** on a draft or unpublished entry and confirm its title. Published entries show **Unpublish first**; the service also checks that the online withdrawal has finished before allowing deletion. Entries in Trash are hidden from normal search, editing, the connected-idea picker and public exports.
 
-Use the **Trash** button in the Library header to find and restore entries. Restoration does not republish them. Original content, annotations, connections, publication history and folio reservations remain intact. Trash is recoverable local removal, not permanent erasure or Git history cleanup. Backups include Trash. A notebook with all entries in Trash can still create new entries or restore old ones.
+Use the **Trash** button in the Library header to find and restore entries. Restoration does not republish them. Original content, annotations, connections, publication history and folio reservations remain intact. Trash is recoverable local removal. **Delete permanently** is available only inside Trash and requires a confirmation naming the entry. It clears the content from the current notebook and removes connected-idea references, leaving a content-free identity/folio reservation so old numbers and links are never reused. It cannot be restored through Trash. Previous local database versions, backup archives and GitHub history are not erased. Backups include Trash. A notebook with all entries in Trash can still create new entries or restore old ones.
 
 ## Photos
 

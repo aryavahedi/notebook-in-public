@@ -134,12 +134,12 @@ class Handler(SimpleHTTPRequestHandler):
      if payload.get('revision')!=revision:return self.send_json(409,{'error':'Another window saved a newer notebook. Reload before deleting or restoring.'})
      target=next((e for e in book['entries'] if e['entryId']==payload.get('entryId')),None)
      if target is None:raise ValueError('Entry not found.')
-     if payload.get('action')=='trash' and deployments.enabled and target.get('publication'):
+     if payload.get('action') in ('trash','delete') and deployments.enabled and target.get('publication'):
       state=deployments.snapshot()
       if deployments.busy() or state.get('checking'):raise ValueError('Wait for the website update to finish before deleting this entry.')
       if state.get('checkError'):raise ValueError('Verify the website connection before deleting this entry. Your writing is unchanged.')
       if target['entryId'] in (state.get('live') or {}).get('entries',{}):raise ValueError('This page is still live. Finish unpublishing it before moving it to Trash.')
-     updated=change_entry_state(book,payload.get('entryId'),payload.get('action'),payload.get('activeId'))
+     updated=change_entry_state(book,payload.get('entryId'),payload.get('action'),payload.get('activeId'),payload.get('confirmDelete',False))
      if updated!=book:revision=db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(updated),)).lastrowid
     return self.send_json(200,{'revision':revision,'notebook':updated})
    except (ValueError,KeyError,TypeError) as error:return self.send_json(400,{'error':str(error)})

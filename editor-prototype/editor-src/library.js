@@ -19,6 +19,7 @@ export function firstImage(node){
 export function libraryEntries(entries,{query='',type='all',state='all',sort='edited',trash=false}={},connection){
  const terms=normalize(query).trim().split(/\s+/).filter(Boolean),collator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
  return entries.filter(entry=>{
+  if(entry.deletedAt)return false;
   if(Boolean(entry.trashedAt)!==trash)return false;
   if(type!=='all'&&entry.type!==type)return false;
   if(state==='draft'&&entry.publication?.status==='published')return false;

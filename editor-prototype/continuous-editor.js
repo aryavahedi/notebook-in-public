@@ -42,6 +42,7 @@
   function libraryEntries(entries, { query = "", type = "all", state = "all", sort = "edited", trash = false } = {}, connection2) {
     const terms = normalize(query).trim().split(/\s+/).filter(Boolean), collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
     return entries.filter((entry2) => {
+      if (entry2.deletedAt) return false;
       if (Boolean(entry2.trashedAt) !== trash) return false;
       if (type !== "all" && entry2.type !== type) return false;
       if (state === "draft" && entry2.publication?.status === "published") return false;
@@ -28364,6 +28365,7 @@ ${line}
   var selectedPhotoSource = null;
   var libraryTrash = false;
   var deleteEntryId = null;
+  var deleteEntryAction = "trash";
   var changingEntry = false;
   var availableEntries = () => book.filter((e) => !e.trashedAt);
   var status = (t) => $2("#save-status").textContent = t;
@@ -28684,13 +28686,13 @@ ${line}
   function renderLibrary() {
     const query = $2("#library-search").value;
     const items = libraryEntries(book, { query, type: libraryType, state: libraryTrash ? "all" : $2("#library-state").value, sort: $2("#library-sort").value, trash: libraryTrash }, connection);
-    const group = book.filter((e) => Boolean(e.trashedAt) === libraryTrash);
+    const group = book.filter((e) => !e.deletedAt && Boolean(e.trashedAt) === libraryTrash);
     $2("#library-title").textContent = libraryTrash ? "Trash" : "Your notebook";
-    $2(".library-header .hint").textContent = libraryTrash ? "Deleted entries stay on this Mac until you restore them." : "Find something to return to, or start a new page.";
+    $2(".library-header .hint").textContent = libraryTrash ? "Restore an entry or delete it permanently from this notebook." : "Find something to return to, or start a new page.";
     $2("#show-trash").setAttribute("aria-pressed", String(libraryTrash));
     $2("#trash-toggle-label").textContent = libraryTrash ? "\u2190 Library" : "Trash";
     $2("#trash-count").hidden = libraryTrash;
-    $2("#trash-count").textContent = book.filter((e) => e.trashedAt).length;
+    $2("#trash-count").textContent = book.filter((e) => e.trashedAt && !e.deletedAt).length;
     $2("#library-state").disabled = libraryTrash;
     $2("#library-count").textContent = "";
     for (const item of document.querySelectorAll("[data-type-count]")) item.textContent = String(item.dataset.typeCount === "all" ? group.length : group.filter((e) => e.type === item.dataset.typeCount).length);
@@ -28703,15 +28705,19 @@ ${line}
         const body = documentText(e.body), at = body.toLowerCase().indexOf(query.toLowerCase());
         if (at >= 0) excerpt = (at > 40 ? "\u2026" : "") + body.slice(Math.max(0, at - 40), at + 130);
       }
-      const blocked = e.publication?.status === "published", action = e.trashedAt ? `<button class="library-entry-action" data-restore-entry="${e.entryId}" aria-label="Restore ${esc(title)}">Restore</button>` : `<button class="library-entry-action danger-text" data-trash-entry="${e.entryId}" aria-label="Move ${esc(title)} to Trash" ${blocked ? 'disabled title="Unpublish this page first"' : ""}>${blocked ? "Unpublish first" : "Move to Trash"}</button>`;
+      const blocked = e.publication?.status === "published", action = e.trashedAt ? `<div class="library-entry-actions"><button class="library-entry-action" data-restore-entry="${e.entryId}" aria-label="Restore ${esc(title)}">Restore</button><button class="library-entry-action danger-text" data-delete-entry="${e.entryId}" aria-label="Delete ${esc(title)} permanently">Delete permanently</button></div>` : `<button class="library-entry-action danger-text" data-trash-entry="${e.entryId}" aria-label="Move ${esc(title)} to Trash" ${blocked ? 'disabled title="Unpublish this page first"' : ""}>${blocked ? "Unpublish first" : "Move to Trash"}</button>`;
       return `<div class="library-item"><button class="library-row" data-load="${e.entryId}" ${e.trashedAt ? "disabled" : ""} ${e === entry ? 'aria-current="page"' : ""}><span class="library-folio"><small>${esc(folioLabel(e))}</small><span>${esc(e.type)}</span></span><span class="library-copy"><strong>${esc(title)}</strong><span>${esc(excerpt.slice(0, 170))}</span></span>${src ? `<img class="library-thumbnail" src="${esc(src)}" alt="" loading="lazy">` : ""}<span class="library-metadata"><span class="library-state">${esc(state)}</span>${date ? `<time datetime="${esc(date)}">${esc(new Date(date.length === 10 ? date + "T12:00:00" : date).toLocaleDateString(void 0, { day: "numeric", month: "short", year: "numeric" }))}</time>` : ""}</span></button>${action}</div>`;
     }).join("") || `<div class="library-empty"><h3>${libraryTrash ? "Nothing in Trash." : "No matching entries."}</h3><p>${libraryTrash ? "Deleted entries will appear here, ready to restore." : "Try another word, type, or status, or clear the filters."}</p></div>`;
     $2("#library-items").scrollTop = 0;
   }
-  function askTrash(id) {
+  function askTrash(id, permanent = false) {
     const target = book.find((e) => e.entryId === id);
-    if (!target || target.trashedAt || target.publication?.status === "published") return;
+    if (!target || target.deletedAt || !permanent && target.trashedAt || permanent && !target.trashedAt || target.publication?.status === "published") return;
     deleteEntryId = id;
+    deleteEntryAction = permanent ? "delete" : "trash";
+    $2("#delete-entry-title").textContent = permanent ? "Delete this entry permanently?" : "Move this entry to Trash?";
+    $2("#delete-entry-description").textContent = permanent ? "This removes its writing, photos and notes from the current notebook. You cannot restore it from Trash afterward. Previous local versions, backups and GitHub history are not erased." : "It will leave your Library. You can restore it from Trash; its writing, notes, history and number are kept. This does not erase earlier GitHub history.";
+    $2("#confirm-trash").textContent = permanent ? "Delete permanently" : "Move to Trash";
     $2("#delete-entry-name").textContent = target.title || "Untitled " + target.type.toLowerCase();
     $2("#delete-entry-error").textContent = "";
     $2("#delete-entry-dialog").showModal();
@@ -28727,7 +28733,7 @@ ${line}
       await flush();
       if (pending || busy) throw Error("Wait for your writing to finish saving, then retry.");
       const active = entry?.entryId;
-      const response = await fetch("/api/entries/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, entryId: id, action, activeId: active || null }) });
+      const response = await fetch("/api/entries/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, entryId: id, action, activeId: active || null, confirmDelete: action === "delete" }) });
       const result = await response.json();
       if (!response.ok) throw Error(result.error || "Could not update this entry.");
       revision = result.revision;
@@ -28745,9 +28751,9 @@ ${line}
       if (!$2("#library-dialog").open) $2("#library-dialog").showModal();
       $2("#show-trash").focus();
       status("Saved to your Mac");
-      notify(action === "trash" ? "Moved to Trash. You can restore it from the Library." : "Restored to your Library. It has not been republished.");
+      notify(action === "trash" ? "Moved to Trash. You can restore it from the Library." : action === "delete" ? "Deleted from this notebook. Earlier backups and GitHub history are unchanged." : "Restored to your Library. It has not been republished.");
     } catch (error) {
-      if (action === "trash") $2("#delete-entry-error").textContent = error.message;
+      if (action !== "restore") $2("#delete-entry-error").textContent = error.message;
       else notify(error.message);
     } finally {
       changingEntry = false;
@@ -28896,6 +28902,7 @@ ${line}
   document.addEventListener("click", (e) => {
     const b2 = e.target.closest("button");
     if (!b2) return;
+    if (b2.dataset.deleteEntry) askTrash(b2.dataset.deleteEntry, true);
     if (b2.dataset.trashEntry) askTrash(b2.dataset.trashEntry);
     if (b2.dataset.restoreEntry) changeEntry(b2.dataset.restoreEntry, "restore");
     if (b2.dataset.newEntry) newEntry(b2.dataset.newEntry);
@@ -29040,7 +29047,7 @@ ${line}
     libraryTrash = !libraryTrash;
     renderLibrary();
   };
-  $2("#confirm-trash").onclick = () => changeEntry(deleteEntryId, "trash");
+  $2("#confirm-trash").onclick = () => changeEntry(deleteEntryId, deleteEntryAction);
   $2("#write-tab").onclick = library;
   $2("#show-library").onclick = library;
   $2("#library-search").oninput = renderLibrary;
