@@ -15,3 +15,8 @@ test('recent edits sort ahead of old publication dates and title sort is natural
  const a=make('041','Essay','Study 10','Old','2026-10-01'),b=make('042','Note','Study 2','New','2026-11-01');a.editedAt='2026-11-17T12:00:00Z';
  assert.deepEqual(libraryEntries([b,a]),[a,b]);assert.deepEqual(libraryEntries([a,b],{sort:'title'}),[b,a]);
 });
+
+test('Trash is separate from normal search and preserves all original entries',()=>{
+ const a=make('041','Note','Keep','Words','2026-11-01'),b=make('042','Sketch','Remove','Lines','2026-11-02');b.trashedAt='2026-11-17';
+ assert.deepEqual(libraryEntries([a,b]),[a]);assert.deepEqual(libraryEntries([a,b],{trash:true}),[b]);assert.deepEqual(libraryEntries([a,b],{query:'Remove'}),[]);
+});

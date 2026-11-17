@@ -16,7 +16,7 @@ npm run build
 python3 server.py --port 4321
 ```
 
-Open http://localhost:4321/?v=library-photos-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
+Open http://localhost:4321/?v=trash-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
 
 With a GitHub checkout connected, **Publish to website** creates a published snapshot and sends the public-only export to GitHub Pages. The editor shows Draft, Unpublished changes, Deploying or Live, with a View live page link and a retry action. You can keep writing while deployment runs; later edits remain private. Unpublish removes the page online while preserving the draft.
 
@@ -29,6 +29,12 @@ Download published website still exports a static ZIP. See LIVE-PUBLISHING.md fo
 Open **Library** to search titles, descriptions, passages, annotations, image descriptions or folio numbers. Filter by Essay, Note or Sketch and publication status. Sort by recent edits, title or folio. Sketches include a small image preview. Entries without a recorded edit time use their publication or original date until edited.
 
 The **+ New** menu remains in the writing toolbar while you scroll. The Library also keeps **+ New entry**, search and filters above the scrolling results. Choose Essay, Note or Sketch; a new Sketch opens the photo picker immediately.
+
+## Delete and restore entries
+
+In Library, use **Move to Trash** on a draft or unpublished entry and confirm its title. Published entries show **Unpublish first**; the service also checks that the online withdrawal has finished before allowing deletion. Entries in Trash are hidden from normal search, editing, the connected-idea picker and public exports.
+
+Use the **Trash** button in the Library header to find and restore entries. Restoration does not republish them. Original content, annotations, connections, publication history and folio reservations remain intact. Trash is recoverable local removal, not permanent erasure or Git history cleanup. Backups include Trash. A notebook with all entries in Trash can still create new entries or restore old ones.
 
 ## Photos
 

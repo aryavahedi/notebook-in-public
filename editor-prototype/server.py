@@ -6,6 +6,7 @@ from urllib.parse import urlsplit, unquote
 from publishing import catalogue, publish_entry, migrate_folios
 from deployment import Deployments, signatures
 from notebook_backup import NotebookBackups, read_notebook_backup
+from entry_lifecycle import change_entry_state
 ROOT=Path(__file__).resolve().parent
 parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=4321);parser.add_argument('--data-dir',default=str(ROOT.parent/'notebook-data'));parser.add_argument('--github-repo-dir');args=parser.parse_args()
 DATA=Path(args.data_dir);DATA.mkdir(parents=True,exist_ok=True);DB=DATA/'notebook.sqlite3'
@@ -101,7 +102,8 @@ class Handler(SimpleHTTPRequestHandler):
     if not isinstance(entry.get('entryId'),str) or not entry['entryId'].isdigit() or entry['entryId'] in ids:raise ValueError('Invalid entry IDs')
     ids.add(entry['entryId'])
     if not isinstance(entry.get('title'),str) or not (isinstance(entry.get('paragraphs'),list) or (entry.get('schemaVersion')==2 and isinstance(entry.get('body'),dict) and entry['body'].get('type')=='doc')):raise ValueError('Invalid entry')
-   if book.get('activeId') not in ids:raise ValueError('Invalid active entry')
+   available={e['entryId'] for e in book['entries'] if not e.get('trashedAt')}
+   if book.get('activeId') not in available and not (not available and book.get('activeId') is None):raise ValueError('Invalid active entry')
    book,_=migrate_folios(book)
    if payload.get('backupBeforeReplace'):
     with sqlite3.connect(DB) as db:current,_=latest(db)
@@ -124,6 +126,24 @@ class Handler(SimpleHTTPRequestHandler):
     return self.send_json(200,read_notebook_backup(self.rfile.read(size)))
    except (ValueError,KeyError,zipfile.BadZipFile):return self.send_json(400,{'error':'This backup could not be verified. Choose another Writing Room backup ZIP.'})
   if not self.allowed() or self.headers.get('Content-Type')!='application/json':return self.send_json(403,{'error':'Local JSON requests only'})
+  if self.path=='/api/entries/state':
+   try:
+    payload=self.read_json()
+    with deployments.lock, sqlite3.connect(DB) as db:
+     db.execute('BEGIN IMMEDIATE');revision,book=latest(db)
+     if payload.get('revision')!=revision:return self.send_json(409,{'error':'Another window saved a newer notebook. Reload before deleting or restoring.'})
+     target=next((e for e in book['entries'] if e['entryId']==payload.get('entryId')),None)
+     if target is None:raise ValueError('Entry not found.')
+     if payload.get('action')=='trash' and deployments.enabled and target.get('publication'):
+      state=deployments.snapshot()
+      if deployments.busy() or state.get('checking'):raise ValueError('Wait for the website update to finish before deleting this entry.')
+      if state.get('checkError'):raise ValueError('Verify the website connection before deleting this entry. Your writing is unchanged.')
+      if target['entryId'] in (state.get('live') or {}).get('entries',{}):raise ValueError('This page is still live. Finish unpublishing it before moving it to Trash.')
+     updated=change_entry_state(book,payload.get('entryId'),payload.get('action'),payload.get('activeId'))
+     if updated!=book:revision=db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(updated),)).lastrowid
+    return self.send_json(200,{'revision':revision,'notebook':updated})
+   except (ValueError,KeyError,TypeError) as error:return self.send_json(400,{'error':str(error)})
+   except Exception:return self.send_json(500,{'error':'Could not update this entry. Your writing is unchanged; retry.'})
   if self.path in ('/api/backups/create','/api/backups/open-folder'):
    try:
     self.read_json()

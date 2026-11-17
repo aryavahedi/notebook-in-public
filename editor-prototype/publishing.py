@@ -59,6 +59,7 @@ def publish_entry(book,entry_id,action='publish',at=None):
  """Return a new notebook; never mutate the caller's pending draft."""
  book=deepcopy(book);entry=next((e for e in book['entries'] if e['entryId']==entry_id),None)
  if entry is None:raise ValueError('Entry not found.')
+ if entry.get('trashedAt'):raise ValueError('Restore this entry from Trash before publishing.')
  previous=entry.get('publication') or {};at=at or now();events=deepcopy(previous.get('events',[]))
  if action=='unpublish':
   if previous.get('status')=='unpublished':return book,entry,False
@@ -82,7 +83,7 @@ def publish_entry(book,entry_id,action='publish',at=None):
  return book,entry,True
 
 def catalogue(book):
- entries=[deepcopy(e['published']) for e in book.get('entries',[]) if e.get('publication',{}).get('status')=='published' and e.get('published')]
+ entries=[deepcopy(e['published']) for e in book.get('entries',[]) if not e.get('trashedAt') and e.get('publication',{}).get('status')=='published' and e.get('published')]
  ids={e['entryId'] for e in entries}
  for e in entries:e['connected']=[i for i in e.get('connected',[]) if i in ids and i!=e['entryId']]
  entries.sort(key=lambda e:(e.get('originalDate') or '',e['entryId']),reverse=True)

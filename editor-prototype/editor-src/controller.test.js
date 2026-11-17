@@ -9,7 +9,7 @@ async function boot(seed=entry(),connection={enabled:false,pages:{}}){
  const dom=new JSDOM(html,{url:'http://localhost:4323/',runScripts:'outside-only',pretendToBeVisual:true});const w=dom.window;
  w.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open')};w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','')};w.structuredClone=structuredClone;w.confirm=()=>true;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.Range.prototype.getClientRects=()=>[];w.Range.prototype.getBoundingClientRect=()=>({top:0,bottom:0,left:0,right:0,width:0,height:0});
  let book={entries:Array.isArray(seed)?seed:[seed],activeId:Array.isArray(seed)?seed[0].entryId:seed.entryId},rev=1,reject=false,retries=[],zipBook=null,saves=[];
- w.fetch=async(url,options)=>{if(url==='/api/backups')return {ok:true,json:async()=>({running:false,lastFile:null})};if(url==='/api/backups/read')return {ok:true,json:async()=>zipBook};if(url==='/api/deployment')return {ok:true,json:async()=>structuredClone(connection)};if(url==='/api/deployment/retry'){retries.push(JSON.parse(options.body));connection={...connection,job:{...connection.job,status:'deploying',message:'Deploying the saved update'}};return {ok:true,json:async()=>structuredClone(connection)}}if(!options)return {ok:true,json:async()=>({revision:rev,notebook:structuredClone(book)})};if(reject)return {ok:false,json:async()=>({error:'Conflict: another window saved'})};const p=JSON.parse(options.body);assert.equal(p.revision,rev);saves.push(p);book=p.notebook;return {ok:true,json:async()=>({revision:++rev})}};
+ w.fetch=async(url,options)=>{if(url==='/api/backups')return {ok:true,json:async()=>({running:false,lastFile:null})};if(url==='/api/backups/read')return {ok:true,json:async()=>zipBook};if(url==='/api/deployment')return {ok:true,json:async()=>structuredClone(connection)};if(url==='/api/deployment/retry'){retries.push(JSON.parse(options.body));connection={...connection,job:{...connection.job,status:'deploying',message:'Deploying the saved update'}};return {ok:true,json:async()=>structuredClone(connection)}}if(!options)return {ok:true,json:async()=>({revision:rev,notebook:structuredClone(book)})};if(reject)return {ok:false,json:async()=>({error:'Conflict: another window saved'})};const p=JSON.parse(options.body);assert.equal(p.revision,rev);if(url==='/api/entries/state'){const target=book.entries.find(e=>e.entryId===p.entryId);if(p.action==='trash')target.trashedAt='2026-11-17T12:00:00Z';else delete target.trashedAt;book.activeId=book.entries.find(e=>!e.trashedAt&&e.entryId===p.activeId)?.entryId||book.entries.find(e=>!e.trashedAt)?.entryId||null;return {ok:true,json:async()=>({revision:++rev,notebook:structuredClone(book)})}}saves.push(p);book=p.notebook;return {ok:true,json:async()=>({revision:++rev})}};
  w.eval(bundle);await new Promise(r=>setTimeout(r,40));
  const input=w.document.querySelector('#restore-notebook');
  return {w,dom,book:()=>book,retries,saves,reject:()=>reject=true,async restore(next,zip=false){zipBook={entries:[next],activeId:next.entryId};Object.defineProperty(input,'files',{configurable:true,value:[{name:zip?'notebook.zip':'notebook.json',text:async()=>JSON.stringify({entries:[next],activeId:next.entryId})}]});await input.onchange({target:input});await new Promise(r=>setTimeout(r,10))}};
@@ -33,3 +33,30 @@ test('the library searches body text and combines type filters without creating 
 });
 test('New essay is available in the writing toolbar and starts the chosen type at the title',async()=>{const h=await boot();try{h.w.document.querySelector('#quick-new-menu [data-new-entry="Essay"]').click();assert.equal(h.w.document.querySelector('#entry-type').value,'Essay');assert.equal(h.w.document.querySelector('#title').value,'');assert.equal(h.w.document.activeElement.id,'title');assert.equal(h.w.document.querySelector('#library-dialog').hasAttribute('open'),false)}finally{h.dom.window.close()}});
 test('New sketch opens image insertion immediately with no library scrolling',async()=>{const h=await boot();try{h.w.document.querySelector('#quick-new-menu [data-new-entry="Sketch"]').click();assert.equal(h.w.document.querySelector('#entry-type').value,'Sketch');assert.equal(h.w.document.querySelector('#photo-dialog').hasAttribute('open'),true);assert.equal(h.w.document.querySelector('#photo-file').required,true)}finally{h.dom.window.close()}});
+
+test('moving the last entry to Trash survives reload and restores without republishing',async()=>{
+ const h=await boot();let reloaded;
+ try{
+  h.w.document.querySelector('#show-library').click();h.w.document.querySelector('[data-trash-entry="041"]').click();
+  assert.equal(h.w.document.querySelector('#delete-entry-dialog').hasAttribute('open'),true);
+  h.w.document.querySelector('#confirm-trash').click();await new Promise(r=>setTimeout(r,30));
+  assert.equal(h.book().activeId,null);assert.ok(h.book().entries[0].trashedAt);assert.equal(h.w.document.querySelector('#empty-notebook').hidden,false);
+  assert.equal(h.w.document.querySelector('#publish').disabled,true);assert.equal(h.w.document.querySelectorAll('.library-row').length,0);
+  reloaded=await boot(h.book().entries);assert.equal(reloaded.w.document.querySelector('#empty-notebook').hidden,false);
+  h.w.document.querySelector('#show-trash').click();assert.equal(h.w.document.querySelectorAll('[data-restore-entry]').length,1);
+  h.w.document.querySelector('[data-restore-entry="041"]').click();await new Promise(r=>setTimeout(r,30));
+  assert.equal(h.book().entries[0].trashedAt,undefined);assert.equal(h.book().entries[0].publication,undefined);
+  assert.equal(h.w.document.querySelector('#title').value,'Original writing');assert.equal(h.w.document.querySelector('[aria-label="Writing body"]').textContent,'Writing stays here.');
+ }finally{h.dom.window.close();reloaded?.dom.window.close()}
+});
+test('published entries offer Unpublish first instead of deletion',async()=>{
+ const seed=entry();seed.publication={status:'published',version:1};const h=await boot(seed);
+ try{h.w.document.querySelector('#show-library').click();const button=h.w.document.querySelector('[data-trash-entry="041"]');assert.equal(button.disabled,true);assert.match(button.textContent,/Unpublish first/)}finally{h.dom.window.close()}
+});
+test('deleting another entry retains the focused writing surface and excludes it from connections',async()=>{
+ const h=await boot([entry(),{...entry('042'),title:'Mistaken draft'}]);try{
+  const body=h.w.document.querySelector('[aria-label="Writing body"]');h.w.document.querySelector('#show-library').click();h.w.document.querySelector('[data-trash-entry="042"]').click();h.w.document.querySelector('#confirm-trash').click();await new Promise(r=>setTimeout(r,30));
+  assert.equal(h.w.document.querySelector('[aria-label="Writing body"]'),body);assert.equal(h.book().activeId,'041');
+  h.w.document.querySelector('#close-library').click();h.w.document.querySelector('#connect-idea').click();assert.doesNotMatch(h.w.document.querySelector('#idea-results').textContent,/Mistaken draft/);
+ }finally{h.dom.window.close()}
+});

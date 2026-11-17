@@ -6,6 +6,7 @@ export function documentText(node){
 }
 export function editedDate(entry){return entry.editedAt||entry.publication?.updatedAt||entry.createdAt||entry.originalDate||''}
 export function entryState(entry,connection){
+ if(entry.trashedAt)return 'In Trash';
  if(entry.publication?.status==='unpublished')return 'Unpublished';
  if(entry.publication?.status!=='published')return 'Draft';
  if(entry.dirty)return 'Unpublished changes';
@@ -15,9 +16,10 @@ export function firstImage(node){
  if(node?.type==='figure'&&/^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src))return node.attrs.src;
  for(const child of node?.content||[]){const src=firstImage(child);if(src)return src}return '';
 }
-export function libraryEntries(entries,{query='',type='all',state='all',sort='edited'}={},connection){
+export function libraryEntries(entries,{query='',type='all',state='all',sort='edited',trash=false}={},connection){
  const terms=normalize(query).trim().split(/\s+/).filter(Boolean),collator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
  return entries.filter(entry=>{
+  if(Boolean(entry.trashedAt)!==trash)return false;
   if(type!=='all'&&entry.type!==type)return false;
   if(state==='draft'&&entry.publication?.status==='published')return false;
   if(state==='published'&&entry.publication?.status!=='published')return false;

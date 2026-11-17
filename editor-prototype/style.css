@@ -100,3 +100,29 @@ dialog input[type=file]::file-selector-button,#restore-notebook::file-selector-b
  .library-footer{padding-block:10px}
 }
 @media(prefers-reduced-motion:reduce){button,summary,input,select,textarea{transition:none}}
+
+/* Recoverable entry removal, kept separate from opening an entry. */
+.library-item{position:relative}
+.library-item .library-row{padding-bottom:44px}
+.library-row:disabled{cursor:default}
+.library-entry-action{position:absolute;right:12px;bottom:9px;padding:6px 8px;font-size:10px;color:var(--blue);min-height:28px}
+.danger-text{color:#973a3c}
+.library-entry-action:disabled{color:var(--muted);cursor:default;background:none}
+.danger-primary{background:#973a3c}
+.danger-primary:hover{background:#7c2d30}
+#delete-entry-error{color:#973a3c;font-size:12px}
+#delete-entry-error:empty{display:none}
+#show-trash{font-size:11px;color:var(--muted);white-space:nowrap}
+#show-trash[aria-pressed=true]{color:var(--blue);background:var(--control-wash)}
+#trash-count{font-size:9px;margin-left:3px}
+#empty-notebook{padding:70px 48px;max-width:650px}
+#empty-notebook h1{font:36px/1.3 Lora,serif}
+#empty-notebook p{line-height:1.8;color:var(--muted);margin-bottom:24px}
+.empty-notebook .inspector>:not(.notebook-backups){display:none}
+.empty-notebook .rail-bottom button:disabled{opacity:.4;cursor:default}
+@media(max-width:620px){
+ .library-header{flex-wrap:wrap}.library-header>div:first-child{flex-basis:100%}.library-header #library-new-menu{margin-right:auto}
+ .library-entry-action{right:10px;bottom:6px;min-height:36px;padding:8px}
+ .library-item .library-row{padding-bottom:48px}
+ #empty-notebook{padding:40px 25px}
+}
