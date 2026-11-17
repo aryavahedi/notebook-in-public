@@ -57,3 +57,21 @@ dialog{border-radius:16px;box-shadow:0 24px 80px #00000022,0 4px 16px #0000000a}
 .skip-link{border-radius:8px}
 @media(max-width:580px){.filter-tabs{gap:4px}.filter-tabs button{padding:9px 8px;flex:1}.search-wrap{padding:0 12px}.search-wrap input{padding:10px 0}}
 @media(prefers-reduced-motion:reduce){.theme-toggle,.filter-tabs button,.search-wrap,.revision-toggle{transition:none}}
+
+/* A phone-sized introduction followed by a full-width sketchbook entry. */
+@media(max-width:580px){
+ .hero{padding:32px 0 30px;gap:30px}
+ .hero .eyebrow{font-size:9px;letter-spacing:1.4px;gap:11px}
+ .hero .short-line{width:22px}
+ .hero h1{font-size:clamp(44px,12vw,58px);line-height:1.08;letter-spacing:-1.6px;margin:19px 0 20px}
+ .hero .home-title-line{display:block}
+ .hero-intro{font-size:20px;line-height:1.5;letter-spacing:-.15px;max-width:35ch}
+ .hero .arrow-link{margin-top:18px;min-height:44px;align-items:center;font-size:12px}
+ .hero .hero-art{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:12px;width:100%;margin:0;padding:20px 0 0;border-top:1px solid var(--rule)}
+ .hero .hero-art .sketch-kicker{position:static;display:block;font-size:9px;line-height:1.5;color:var(--muted)}
+ .hero .hero-art>a{display:block;width:100%;min-width:0}
+ .hero .hero-art .published-sketch-image{display:block;width:100%;height:auto;max-height:210px;object-fit:contain;margin:0 auto;padding:0}
+ .hero .hero-art .geometry{width:min(72%,240px);height:auto;margin:0 auto}
+ .hero .hero-art figcaption{padding:0;font:12px/1.6 var(--sans);color:var(--muted);max-width:100%;overflow-wrap:anywhere}
+ .hero .hero-art figcaption span{display:inline-block;font:italic 17px/1.4 var(--serif);margin:0 9px 0 0;color:var(--blue)}
+}
