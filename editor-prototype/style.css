@@ -37,3 +37,66 @@
 @media(max-width:620px){.actionbar{padding-block:10px;min-height:90px}.tabs button,.new-entry-menu summary{font-size:11px;padding-inline:8px}.continuous-toolbar{top:var(--actionbar-height,90px)}#library-dialog{width:calc(100vw - 20px);max-height:94dvh;height:94dvh}.library-header{padding:18px 16px;gap:8px}.library-header h2{font-size:24px}.library-header .hint{display:none}.library-header .new-entry-menu summary{font-size:11px;padding:10px}.library-header #close-library{padding:7px 2px}.library-tools{padding:12px 16px 0}.library-controls{gap:8px}.library-types{width:100%;justify-content:space-between;margin:0}.library-controls label:last-child{margin-left:auto}.library-row{grid-template-columns:59px minmax(0,1fr);gap:10px;padding:17px 0}.library-row .library-copy>strong{font-size:19px}.library-row .library-metadata{grid-column:2;flex-direction:row;justify-content:space-between;align-items:center;min-width:0;gap:8px}.library-row .library-copy>span{font-size:11px}.library-row .library-folio>small{font-size:14px}.library-thumbnail{grid-column:1;grid-row:2;width:44px;height:44px}#library-items{padding:0 16px}.library-footer{padding:8px 16px}}
 .library-row .library-copy>strong{color:var(--ink)}.library-row .library-metadata{grid-column:4}.library-thumbnail{grid-column:3}
 @media(max-width:620px){.library-row .library-metadata{grid-column:2}.library-thumbnail{grid-column:1}}
+
+/* Soft control surfaces; the document itself stays open and borderless. */
+:root{--control-radius:8px;--panel-radius:16px;--control-wash:#304bb50a;--panel-shadow:0 24px 80px #30231f24,0 4px 16px #30231f0d}
+button,summary,input,select,textarea{transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,color .16s ease}
+button{border-radius:var(--control-radius)}
+button:hover{background:#30231f08}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.primary,.library-header .new-entry-menu summary{border-radius:var(--control-radius);box-shadow:0 2px 5px #304bb51a}
+.primary:hover,.library-header .new-entry-menu summary:hover{background:#253c93}
+.primary:disabled{box-shadow:none}
+.rail .active{border-radius:var(--control-radius);background:var(--control-wash)}
+.tabs button[aria-pressed=true],.preview-sizes button[aria-pressed=true]{background:var(--control-wash);border-bottom-color:transparent}
+#quick-new-menu summary{border:1px solid #304bb529;border-radius:var(--control-radius);background:#304bb505}
+#quick-new-menu summary:hover,#quick-new-menu[open] summary{background:#304bb510}
+.status{border-radius:5px;background:#304bb506}
+#entry-type{border:1px solid var(--rule);border-radius:6px;padding:7px 10px;background:#ffffff35}
+#original-date{border-radius:var(--control-radius);background:#ffffff35}
+#insert-menu>summary{list-style:none;border-radius:var(--control-radius)}
+#insert-menu>summary::-webkit-details-marker{display:none}
+#insert-menu>summary:hover,#insert-menu[open]>summary{background:var(--control-wash)}
+.insert-options,.new-entry-options{border-radius:12px;padding:7px;box-shadow:0 12px 36px #30231f18,0 2px 6px #30231f0a}
+.insert-options button,.new-entry-options button{border-radius:6px;min-height:38px}
+.insert-options button:hover,.new-entry-options button:hover{background:var(--control-wash);color:var(--blue)}
+#selection-menu{border-radius:10px;padding:5px;box-shadow:0 8px 28px #30231f1c}
+#selection-menu button{border-radius:6px}
+dialog{border-radius:var(--panel-radius);box-shadow:var(--panel-shadow);border-color:#d9d5cc}
+dialog::backdrop{background:#30231f42;backdrop-filter:blur(3px)}
+dialog input:not([type=checkbox]),dialog select,dialog textarea{border-radius:var(--control-radius);background:#ffffff42}
+dialog input:not([type=checkbox]):hover,dialog select:hover,dialog textarea:hover{border-color:#b5b0a6}
+dialog input:not([type=checkbox]):focus,dialog select:focus,dialog textarea:focus{border-color:var(--blue)}
+dialog input[type=file]::file-selector-button,#restore-notebook::file-selector-button{font:inherit;border:1px solid var(--rule);border-radius:6px;padding:7px 10px;margin-right:10px;background:#eae9e2;color:var(--ink);cursor:pointer}
+.annotation{background:#304bb505;border-left:2px solid #304bb530;border-radius:0 8px 8px 0;padding:12px 14px;margin:16px 0}
+.annotation button{padding-inline:6px;margin-left:-6px}
+#toast{border-radius:10px;box-shadow:0 8px 28px #30231f24}
+#library-dialog{border-radius:var(--panel-radius)}
+.library-header{padding:26px 28px 22px}
+.library-header #close-library{padding:10px 12px}
+#library-search{border:1px solid var(--rule);border-radius:9px;background:#ffffff50;padding:13px 15px;min-height:46px}
+#library-search:focus{border-color:var(--blue)}
+#library-search:focus-visible,dialog input:not([type=checkbox]):focus-visible,dialog select:focus-visible,dialog textarea:focus-visible{outline:none;box-shadow:0 0 0 3px #304bb51a}
+.library-controls{padding:14px 0 16px;gap:10px}
+.library-types{gap:4px}
+.library-types button{padding:8px 10px;border-radius:7px}
+.library-types button[aria-pressed=true]{box-shadow:none;background:#304bb510;color:var(--blue)}
+.library-controls select{border-radius:7px;background:#ffffff35;padding:8px;min-height:36px;cursor:pointer}
+.library-row{border-radius:9px;padding:22px 12px;gap:18px;border-top-color:transparent;position:relative}
+.library-row::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:var(--rule)}
+.library-row:last-child::after{display:none}
+.library-row:hover,.library-row:focus-visible{background:#304bb507}
+.library-row[aria-current=page]{box-shadow:inset 2px 0 #304bb580;background:#304bb506;padding-left:12px}
+.library-row .library-metadata .library-state{display:inline-flex;padding:3px 8px;border-radius:5px;background:#304bb509;font-size:10px}
+.library-thumbnail{background:#eae9e24d;border-radius:4px}
+.library-footer{padding-block:14px}
+.library-footer button{padding:8px 10px;margin-right:-10px}
+/* Title and body are writing surfaces, not framed controls. */
+.document-head textarea,#body-editor .tiptap{border-radius:0;box-shadow:none}
+@media(max-width:620px){
+ dialog{border-radius:14px}.library-header{padding:20px 16px;gap:6px}.library-header #close-library{padding:8px 5px}
+ .library-controls{gap:8px;padding-bottom:14px}.library-types{gap:2px}.library-types button{padding:8px 6px}
+ .library-row{padding:18px 10px;gap:10px}.library-row[aria-current=page]{padding-left:10px}.library-row::after{left:10px;right:10px}
+ .library-footer{padding-block:10px}
+}
+@media(prefers-reduced-motion:reduce){button,summary,input,select,textarea{transition:none}}
