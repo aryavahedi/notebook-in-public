@@ -23,3 +23,8 @@ __pycache__/
 publishing-config.json
 website-deployment.json
 pending-website.zip
+
+# Private local backups and generated Mac launcher
+notebook-backups/
+backup-status.json
+Writing Room.app/

@@ -6,7 +6,7 @@ import {extensions,migrate,uid,esc,safeURL,render,numbering} from './document.js
 const $=s=>document.querySelector(s),today=()=>new Date().toLocaleDateString('en-CA'),clone=x=>structuredClone(x),prefix=t=>({Essay:'e.',Note:'n.',Sketch:'s.'})[t]||'e.';
 const parse=html=>generateJSON(html,extensions());
 let book=[],entry,editor,revision=0,pending=false,busy=false,timer,ready=false,selection=null,editing=null,mode='side',metadataFocused=false,changeCounter=0,figurePosition=null,publicationAction='publish';
-let connection=null,deploymentTimer,submittingPublication=false;
+let connection=null,deploymentTimer,backupTimer,submittingPublication=false;
 const status=t=>$('#save-status').textContent=t;
 const notify=t=>{ $('#toast').textContent=t;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),4000)};
 const records=()=>editor?.state.doc.attrs.annotations||{};
@@ -57,7 +57,7 @@ function ideas(){const q=$('#idea-search').value.toLowerCase();$('#idea-results'
 function preview(published=false){capture();if(published){$('#website-frame').src='/published/#/entry/'+encodeURIComponent(entry.entryId);$('#preview-source').textContent='Published website · on this Mac'}else{const key='folio-preview-'+uid();const items=book.filter(e=>e.publication?.status==='published'&&e.entryId!==entry.entryId).map(e=>e.published);items.push(entry);try{sessionStorage.setItem(key,JSON.stringify({entries:items,entry}))}catch{notify('Preview is too large for browser storage. Try a smaller image.');return}$('#website-frame').src='site/?continuous=1&preview='+key+'&v='+Date.now()+'#/entry/'+encodeURIComponent(entry.entryId);$('#preview-source').textContent='Draft · website preview'}$('#website-preview').hidden=false;$('.workspace').inert=true;$('#back-to-editor').focus()}
 
 function closePreview(){$('#website-preview').hidden=true;$('.workspace').inert=false;editor.commands.focus()}
-async function start(){try{const r=await fetch('/api/notebook');if(!r.ok)throw Error('Start the local writing server to save your notebook.');const data=await r.json();revision=data.revision;let old=data.notebook;if(!old){const entries=JSON.parse(localStorage.getItem('living-folio-library-v1')||'[]');old={entries:entries.length?entries:[window.editorContent],activeId:entries[0]?.entryId||'041'}}book=old.entries.map(e=>migrate({...e,entryId:e.entryId||'041'},parse));entry=undefined;ready=true;load(book.find(e=>e.entryId===old.activeId)||book[0]);sync();await flush();$('.prototype').textContent='LOCAL NOTEBOOK · ON YOUR MAC';$('.workspace').inert=false;refreshDeployment()}catch(e){status(e.message);notify(e.message)}}
+async function start(){try{const r=await fetch('/api/notebook');if(!r.ok)throw Error('Start the local writing server to save your notebook.');const data=await r.json();revision=data.revision;let old=data.notebook;if(!old){const entries=JSON.parse(localStorage.getItem('living-folio-library-v1')||'[]');old={entries:entries.length?entries:[window.editorContent],activeId:entries[0]?.entryId||'041'}}book=old.entries.map(e=>migrate({...e,entryId:e.entryId||'041'},parse));const needsSave=!data.notebook||JSON.stringify(book)!==JSON.stringify(old.entries);entry=undefined;ready=true;load(book.find(e=>e.entryId===old.activeId)||book[0]);if(needsSave)sync();await flush();if(!pending&&!busy)status('Saved to your Mac');$('.prototype').textContent='LOCAL NOTEBOOK · ON YOUR MAC';$('.workspace').inert=false;refreshDeployment();refreshBackups()}catch(e){status(e.message);notify(e.message)}}
 // The old prototype controllers are deliberately not loaded: this controller owns every body transaction.
 $('.workspace').inert=true;
 for(const name of ['title','description']){$('#'+name).onfocus=()=>{metadataFocused=true;$('#selection-menu').hidden=true};$('#'+name).oninput=e=>{entry[name]=e.target.value;markDirty();e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px';sync()}}
@@ -106,21 +106,39 @@ $('#confirm-publish').onclick=async()=>{
 
 $('#export').onclick=$('#export-mobile').onclick=$('#export-page').onclick=()=>download(entry.type.toLowerCase()+'-'+(folioNumber(entry)?String(folioNumber(entry)):'draft')+'.json',capture());$('#backup-notebook').onclick=()=>download('living-folio-backup.json',{entries:book,activeId:entry.entryId});$('#retry-save').onclick=()=>{pending=true;flush()};
 $('#restore-notebook').onchange=async e=>{try{
- const file=e.target.files[0];if(!file)return;const data=JSON.parse(await file.text());
+ const file=e.target.files[0];if(!file)return;let data;
+ if(file.name?.toLowerCase().endsWith('.zip')){const response=await fetch('/api/backups/read',{method:'POST',headers:{'Content-Type':'application/zip'},body:file});data=await response.json();if(!response.ok)throw Error(data.error||'The backup could not be read.')}else data=JSON.parse(await file.text());
  if(!Array.isArray(data.entries)||!data.entries.length)throw Error('No entries found');
  const schema=getSchema(extensions());const converted=data.entries.map(x=>{
   if(typeof x.entryId!=='string'||!/^\d+$/.test(x.entryId)||typeof x.title!=='string'||(!x.body&&!Array.isArray(x.paragraphs)))throw Error('Invalid entry');
   const converted=migrate(x,parse);schema.nodeFromJSON(converted.body).check();if(converted.published)schema.nodeFromJSON(converted.published.body).check();return converted;
  });
  if(new Set(converted.map(x=>x.entryId)).size!==converted.length)throw Error('Duplicate entry IDs');
- if(!confirm('Replace this notebook with the backup? Previous disk versions remain saved.'))return;
+ if(!confirm('Replace this notebook with the backup? A safety backup will be kept first, and previous disk versions remain saved.'))return;
  if(busy||pending){notify('Wait for saving to finish before restoring.');return}
  $('.workspace').inert=true;
  const activeId=converted.find(x=>x.entryId===data.activeId)?.entryId||converted[0].entryId;
- const response=await fetch('/api/notebook',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision,notebook:{entries:converted,activeId}})});
+ const response=await fetch('/api/notebook',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision,notebook:{entries:converted,activeId},backupBeforeReplace:true})});
  const result=await response.json();if(!response.ok)throw Error(result.error||'Disk save failed; current notebook retained');
  revision=result.revision;book=converted;entry=undefined;load(book.find(x=>x.entryId===activeId));status('Backup restored on your Mac');notify('Notebook restored.');
  }catch(error){notify('Could not restore: '+error.message)}finally{$('.workspace').inert=false;e.target.value=''}};
+
+function renderBackups(data){
+ $('#backup-now').disabled=!!data.running;
+ $('#backup-status').textContent=data.error||(data.running?'Creating and verifying your backup…':data.lastBackupAt?'Last verified backup: '+new Date(data.lastBackupAt).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Your first backup will be created after the notebook is saved.');
+ $('#download-backup').hidden=!data.lastFile;
+}
+async function refreshBackups(){
+ clearTimeout(backupTimer);
+ try{const response=await fetch('/api/backups');if(!response.ok)throw Error();const data=await response.json();renderBackups(data);backupTimer=setTimeout(refreshBackups,data.running?1500:30000)}
+ catch{$('#backup-status').textContent='Could not check backups. Your writing is still saved locally.';backupTimer=setTimeout(refreshBackups,30000)}
+}
+$('#backup-now').onclick=async()=>{
+ $('#backup-now').disabled=true;
+ try{if(busy||pending){await flush();if(busy||pending)throw Error('Wait for saving to finish, then back up.')}const response=await fetch('/api/backups/create',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await response.json();if(!response.ok)throw Error(data.error);renderBackups(data);refreshBackups()}
+ catch(error){notify(error.message||'Could not start a backup.');$('#backup-now').disabled=false}
+};
+$('#open-backups').onclick=async()=>{try{const response=await fetch('/api/backups/open-folder',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!response.ok)throw Error((await response.json()).error)}catch(error){notify(error.message||'Could not open the backup folder.')}};
 
 window.addEventListener('beforeunload',e=>{if(pending||busy){e.preventDefault();e.returnValue=''}});window.addEventListener('resize',()=>$('#selection-menu').hidden=true);window.addEventListener('scroll',()=>$('#selection-menu').hidden=true,true);
 $('#jump-margins').onclick=()=>$('#note-settings').scrollIntoView({block:'start'});$('#return-writing').onclick=()=>editor.commands.focus();

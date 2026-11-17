@@ -16,6 +16,12 @@ Only explicitly published snapshots are included. The local Writing Room, notebo
 - **editor-prototype/**: the local editor, saving service, shared reader, source and tests.
 - **scripts/update-website.py**: refresh docs/ from a running Writing Room’s published-only export; optionally commit and push it.
 
+## Open with a launcher
+
+Run `python3 editor-prototype/create_launcher.py` once to generate **Writing Room.app** for this Mac. Double-click it to start or reuse the Writing Room without a terminal. The generated app is local and excluded from Git.
+
+Verified backups run on opening and hourly when content changes. Use **Notebook backups** for Back up now, Download latest backup, Open backups folder, and Restore a backup. ZIPs contain both the latest structured notebook and the complete saved-version database. Backups stay local under the ignored notebook-backups/ folder. See editor-prototype/LAUNCHER-AND-BACKUPS.md for recovery and retention.
+
 ## Write locally
 
 From this repository, run:

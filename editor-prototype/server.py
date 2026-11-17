@@ -1,13 +1,15 @@
 """Loopback-only Writing Room, versioned notebook and published-only website."""
-import json, sqlite3, argparse, io, zipfile
+import json, sqlite3, argparse, io, zipfile, os, hashlib, subprocess, sys
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlsplit, unquote
 from publishing import catalogue, publish_entry, migrate_folios
 from deployment import Deployments, signatures
+from notebook_backup import NotebookBackups, read_notebook_backup
 ROOT=Path(__file__).resolve().parent
 parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=4321);parser.add_argument('--data-dir',default=str(ROOT.parent/'notebook-data'));parser.add_argument('--github-repo-dir');args=parser.parse_args()
 DATA=Path(args.data_dir);DATA.mkdir(parents=True,exist_ok=True);DB=DATA/'notebook.sqlite3'
+backups=NotebookBackups(DB,DATA.parent/'notebook-backups')
 configuration=DATA/'publishing-config.json'
 if args.github_repo_dir:configuration.write_text(json.dumps({'repositoryPath':str(Path(args.github_repo_dir).resolve())}))
 try:repository=json.loads(configuration.read_text()).get('repositoryPath')
@@ -24,6 +26,7 @@ with sqlite3.connect(DB) as db:
   migrated,changed=migrate_folios(book)
   if changed:db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(migrated),))
 deployments.start()
+backups.start()
 def deployment_status(book):
  state=deployments.snapshot();live=(state.get('live') or {}).get('entries',{});current=signatures(catalogue(book or {'entries':[]})['entries'])
  state['pages']={e['entryId']:{'isLive':e['entryId'] in live,'currentIsLive':current.get(e['entryId'])==live[e['entryId']] if e['entryId'] in live else False} for e in (book or {}).get('entries',[])}
@@ -57,6 +60,15 @@ class Handler(SimpleHTTPRequestHandler):
  def do_GET(self):
   if not self.allowed():return self.send_json(403,{'error':'Local access only'})
   path=unquote(urlsplit(self.path).path)
+  if path=='/api/health':return self.send_json(200,{'application':'living-folio-writing-room','notebookId':hashlib.sha256(str(DB.resolve()).encode()).hexdigest()[:20],'pid':os.getpid()})
+  if path=='/api/backups':return self.send_json(200,backups.status())
+  if path=='/api/backups/latest':
+   archive=backups.latest_path()
+   if not archive:return self.send_json(404,{'error':'No verified backup is available yet.'})
+   self.send_response(200);self.send_header('Content-Type','application/zip');self.send_header('Content-Length',str(archive.stat().st_size));self.send_header('Content-Disposition',f'attachment; filename="{archive.name}"');self.end_headers()
+   with archive.open('rb') as source:
+    for block in iter(lambda:source.read(65536),b''):self.wfile.write(block)
+   return
   if path=='/api/notebook':
    with sqlite3.connect(DB) as db:revision,book=latest(db)
    return self.send_json(200,{'revision':revision,'notebook':book})
@@ -91,15 +103,36 @@ class Handler(SimpleHTTPRequestHandler):
     if not isinstance(entry.get('title'),str) or not (isinstance(entry.get('paragraphs'),list) or (entry.get('schemaVersion')==2 and isinstance(entry.get('body'),dict) and entry['body'].get('type')=='doc')):raise ValueError('Invalid entry')
    if book.get('activeId') not in ids:raise ValueError('Invalid active entry')
    book,_=migrate_folios(book)
+   if payload.get('backupBeforeReplace'):
+    with sqlite3.connect(DB) as db:current,_=latest(db)
+    if payload.get('revision')!=current:return self.send_json(409,{'error':'Another window saved a newer notebook. Reload before restoring.'})
+    if not backups.create(force=True,reason='before-restore'):raise ValueError('A verified safety backup could not finish. Wait for any running backup, then retry restoring.')
    with sqlite3.connect(DB) as db:
     db.execute('BEGIN IMMEDIATE');revision,_=latest(db)
     if payload.get('revision')!=revision:return self.send_json(409,{'error':'Another window saved a newer version. Back up your draft before reloading.'})
     cursor=db.execute('INSERT INTO versions(content) VALUES (?)',(json.dumps(book),));new_revision=cursor.lastrowid
+   if not backups.latest_path():backups.request(reason='automatic')
    return self.send_json(200,{'revision':new_revision})
   except (ValueError,KeyError,TypeError) as error:return self.send_json(400,{'error':str(error)})
   except Exception:return self.send_json(500,{'error':'Could not save to disk. Export a backup and retry.'})
  def do_POST(self):
+  if self.path=='/api/backups/read':
+   if not self.allowed() or self.headers.get('Content-Type')!='application/zip':return self.send_json(403,{'error':'Local backup imports only'})
+   try:
+    size=int(self.headers.get('Content-Length',0))
+    if size<1 or size>100_000_000:raise ValueError('Choose a backup ZIP under 100 MB.')
+    return self.send_json(200,read_notebook_backup(self.rfile.read(size)))
+   except (ValueError,KeyError,zipfile.BadZipFile):return self.send_json(400,{'error':'This backup could not be verified. Choose another Writing Room backup ZIP.'})
   if not self.allowed() or self.headers.get('Content-Type')!='application/json':return self.send_json(403,{'error':'Local JSON requests only'})
+  if self.path in ('/api/backups/create','/api/backups/open-folder'):
+   try:
+    self.read_json()
+    if self.path.endswith('/create'):backups.request(force=True,reason='manual')
+    elif sys.platform=='darwin':
+     backups.folder.mkdir(parents=True,exist_ok=True);subprocess.Popen(['/usr/bin/open',str(backups.folder)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    else:raise ValueError('Open the notebook-backups folder beside notebook-data.')
+    return self.send_json(202,backups.status())
+   except (ValueError,OSError) as error:return self.send_json(400,{'error':str(error)})
   if self.path in ('/api/deployment/retry','/api/deployment/refresh'):
    try:
     payload=self.read_json()

@@ -28301,6 +28301,7 @@ ${line}
   var publicationAction = "publish";
   var connection = null;
   var deploymentTimer;
+  var backupTimer;
   var submittingPublication = false;
   var status = (t) => $2("#save-status").textContent = t;
   var notify = (t) => {
@@ -28647,14 +28648,17 @@ ${line}
         old = { entries: entries.length ? entries : [window.editorContent], activeId: entries[0]?.entryId || "041" };
       }
       book = old.entries.map((e) => migrate({ ...e, entryId: e.entryId || "041" }, parse));
+      const needsSave = !data.notebook || JSON.stringify(book) !== JSON.stringify(old.entries);
       entry = void 0;
       ready = true;
       load(book.find((e) => e.entryId === old.activeId) || book[0]);
-      sync();
+      if (needsSave) sync();
       await flush();
+      if (!pending && !busy) status("Saved to your Mac");
       $2(".prototype").textContent = "LOCAL NOTEBOOK \xB7 ON YOUR MAC";
       $2(".workspace").inert = false;
       refreshDeployment();
+      refreshBackups();
     } catch (e) {
       status(e.message);
       notify(e.message);
@@ -28937,7 +28941,12 @@ ${line}
     try {
       const file = e.target.files[0];
       if (!file) return;
-      const data = JSON.parse(await file.text());
+      let data;
+      if (file.name?.toLowerCase().endsWith(".zip")) {
+        const response2 = await fetch("/api/backups/read", { method: "POST", headers: { "Content-Type": "application/zip" }, body: file });
+        data = await response2.json();
+        if (!response2.ok) throw Error(data.error || "The backup could not be read.");
+      } else data = JSON.parse(await file.text());
       if (!Array.isArray(data.entries) || !data.entries.length) throw Error("No entries found");
       const schema = getSchema(extensions());
       const converted = data.entries.map((x2) => {
@@ -28948,14 +28957,14 @@ ${line}
         return converted2;
       });
       if (new Set(converted.map((x2) => x2.entryId)).size !== converted.length) throw Error("Duplicate entry IDs");
-      if (!confirm("Replace this notebook with the backup? Previous disk versions remain saved.")) return;
+      if (!confirm("Replace this notebook with the backup? A safety backup will be kept first, and previous disk versions remain saved.")) return;
       if (busy || pending) {
         notify("Wait for saving to finish before restoring.");
         return;
       }
       $2(".workspace").inert = true;
       const activeId = converted.find((x2) => x2.entryId === data.activeId)?.entryId || converted[0].entryId;
-      const response = await fetch("/api/notebook", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, notebook: { entries: converted, activeId } }) });
+      const response = await fetch("/api/notebook", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision, notebook: { entries: converted, activeId }, backupBeforeReplace: true }) });
       const result = await response.json();
       if (!response.ok) throw Error(result.error || "Disk save failed; current notebook retained");
       revision = result.revision;
@@ -28969,6 +28978,49 @@ ${line}
     } finally {
       $2(".workspace").inert = false;
       e.target.value = "";
+    }
+  };
+  function renderBackups(data) {
+    $2("#backup-now").disabled = !!data.running;
+    $2("#backup-status").textContent = data.error || (data.running ? "Creating and verifying your backup\u2026" : data.lastBackupAt ? "Last verified backup: " + new Date(data.lastBackupAt).toLocaleString(void 0, { dateStyle: "medium", timeStyle: "short" }) : "Your first backup will be created after the notebook is saved.");
+    $2("#download-backup").hidden = !data.lastFile;
+  }
+  async function refreshBackups() {
+    clearTimeout(backupTimer);
+    try {
+      const response = await fetch("/api/backups");
+      if (!response.ok) throw Error();
+      const data = await response.json();
+      renderBackups(data);
+      backupTimer = setTimeout(refreshBackups, data.running ? 1500 : 3e4);
+    } catch {
+      $2("#backup-status").textContent = "Could not check backups. Your writing is still saved locally.";
+      backupTimer = setTimeout(refreshBackups, 3e4);
+    }
+  }
+  $2("#backup-now").onclick = async () => {
+    $2("#backup-now").disabled = true;
+    try {
+      if (busy || pending) {
+        await flush();
+        if (busy || pending) throw Error("Wait for saving to finish, then back up.");
+      }
+      const response = await fetch("/api/backups/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error);
+      renderBackups(data);
+      refreshBackups();
+    } catch (error) {
+      notify(error.message || "Could not start a backup.");
+      $2("#backup-now").disabled = false;
+    }
+  };
+  $2("#open-backups").onclick = async () => {
+    try {
+      const response = await fetch("/api/backups/open-folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!response.ok) throw Error((await response.json()).error);
+    } catch (error) {
+      notify(error.message || "Could not open the backup folder.");
     }
   };
   window.addEventListener("beforeunload", (e) => {

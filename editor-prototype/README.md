@@ -2,7 +2,13 @@
 
 A local Tiptap writing editor and publishing workflow for Arya Vahedi’s notebook. Includes Markdown shortcuts, images, tables, paragraph numbers, footnotes, side notes, connected ideas and dated passages.
 
-## Run
+## Open on this Mac
+
+Double-click the generated **Writing Room.app**. To create it from a fresh project, run `python3 editor-prototype/create_launcher.py` from the project root. It starts or reuses the existing notebook server and opens your browser. See LAUNCHER-AND-BACKUPS.md for details.
+
+Private notebook backups are verified automatically on opening and hourly when content changes. The Notebook backups section provides manual backup, download, folder and restore controls. Backups stay local under notebook-backups/, outside the served editor and public website.
+
+## Run manually
 
 ```sh
 npm ci
