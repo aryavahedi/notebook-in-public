@@ -15,6 +15,60 @@
     return number ? prefix(entry2.type) + displayNumber(number) : null;
   }
 
+  // editor-src/library.js
+  var normalize = (value) => String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+  function documentText(node) {
+    if (!node) return "";
+    return [node.text, node.type === "figure" ? node.attrs?.caption : "", node.type === "figure" ? node.attrs?.alt : "", ...(node.content || []).map(documentText)].filter(Boolean).join(" ");
+  }
+  function editedDate(entry2) {
+    return entry2.editedAt || entry2.publication?.updatedAt || entry2.createdAt || entry2.originalDate || "";
+  }
+  function entryState(entry2, connection2) {
+    if (entry2.publication?.status === "unpublished") return "Unpublished";
+    if (entry2.publication?.status !== "published") return "Draft";
+    if (entry2.dirty) return "Unpublished changes";
+    return connection2?.pages?.[entry2.entryId]?.currentIsLive ? "Live" : "Published";
+  }
+  function firstImage(node) {
+    if (node?.type === "figure" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src)) return node.attrs.src;
+    for (const child of node?.content || []) {
+      const src = firstImage(child);
+      if (src) return src;
+    }
+    return "";
+  }
+  function libraryEntries(entries, { query = "", type = "all", state = "all", sort = "edited" } = {}, connection2) {
+    const terms = normalize(query).trim().split(/\s+/).filter(Boolean), collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
+    return entries.filter((entry2) => {
+      if (type !== "all" && entry2.type !== type) return false;
+      if (state === "draft" && entry2.publication?.status === "published") return false;
+      if (state === "published" && entry2.publication?.status !== "published") return false;
+      if (state === "changes" && !(entry2.publication?.status === "published" && entry2.dirty)) return false;
+      if (!terms.length) return true;
+      const folio = folioLabel(entry2), notes = Object.values(entry2.body?.attrs?.annotations || {}).map((n) => (n.label || "") + " " + (n.text || ""));
+      const text = normalize([entry2.title, entry2.description, entry2.type, folio, folio.replace(/[^\w]/g, ""), documentText(entry2.body), ...notes].join(" "));
+      return terms.every((term) => text.includes(term));
+    }).slice().sort((a, b2) => {
+      if (sort === "title") return collator.compare(a.title || `Untitled ${a.type}`, b2.title || `Untitled ${b2.type}`) || Number(b2.entryId) - Number(a.entryId);
+      if (sort === "folio") return collator.compare(a.type, b2.type) || (folioNumber(a) || Infinity) - (folioNumber(b2) || Infinity) || Number(b2.entryId) - Number(a.entryId);
+      return editedDate(b2).localeCompare(editedDate(a)) || Number(b2.entryId) - Number(a.entryId);
+    });
+  }
+
+  // editor-src/images.js
+  function imageError(file) {
+    return !file || file.size > 2097152 || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) ? "Choose a PNG, JPEG, WebP, or GIF up to 2 MB." : "";
+  }
+  function readOriginalImage(file, Reader = globalThis.FileReader) {
+    return new Promise((resolve, reject) => {
+      const reader = new Reader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(Error("The image could not be read. Try choosing it again."));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // editor-src/publication-status.js
   var deploying = (job) => ["queued", "preparing", "pushing", "deploying"].includes(job?.status);
   function publicationStatus(entry2, connection2) {
@@ -12421,7 +12475,7 @@
       result = "Shift-" + result;
     return result;
   }
-  function normalize(map2) {
+  function normalize2(map2) {
     let copy2 = /* @__PURE__ */ Object.create(null);
     for (let prop in map2)
       copy2[normalizeKeyName(prop)] = map2[prop];
@@ -12442,7 +12496,7 @@
     return new Plugin({ props: { handleKeyDown: keydownHandler(bindings) } });
   }
   function keydownHandler(bindings) {
-    let map2 = normalize(bindings);
+    let map2 = normalize2(bindings);
     return function(view, event) {
       let name = keyName(event), baseName, direct = map2[modifiers(name, event)];
       if (direct && direct(view.state, view.dispatch, view))
@@ -23610,22 +23664,22 @@ ${prefix2}
   function normalizeSelection(state, tr2, allowTableNodeSelection) {
     const sel = (tr2 || state).selection;
     const doc3 = (tr2 || state).doc;
-    let normalize2;
+    let normalize3;
     let role;
     if (sel instanceof NodeSelection && (role = sel.node.type.spec.tableRole)) {
-      if (role == "cell" || role == "header_cell") normalize2 = CellSelection.create(doc3, sel.from);
+      if (role == "cell" || role == "header_cell") normalize3 = CellSelection.create(doc3, sel.from);
       else if (role == "row") {
         const $cell = doc3.resolve(sel.from + 1);
-        normalize2 = CellSelection.rowSelection($cell, $cell);
+        normalize3 = CellSelection.rowSelection($cell, $cell);
       } else if (!allowTableNodeSelection) {
         const map2 = TableMap.get(sel.node);
         const start2 = sel.from + 1;
         const lastCell = start2 + map2.map[map2.width * map2.height - 1];
-        normalize2 = CellSelection.create(doc3, start2 + 1, lastCell);
+        normalize3 = CellSelection.create(doc3, start2 + 1, lastCell);
       }
-    } else if (sel instanceof TextSelection && isCellBoundarySelection(sel)) normalize2 = TextSelection.create(doc3, sel.from);
-    else if (sel instanceof TextSelection && isTextSelectionAcrossCells(sel)) normalize2 = TextSelection.create(doc3, sel.$from.start(), sel.$from.end());
-    if (normalize2) (tr2 || (tr2 = state.tr)).setSelection(normalize2);
+    } else if (sel instanceof TextSelection && isCellBoundarySelection(sel)) normalize3 = TextSelection.create(doc3, sel.from);
+    else if (sel instanceof TextSelection && isTextSelectionAcrossCells(sel)) normalize3 = TextSelection.create(doc3, sel.$from.start(), sel.$from.end());
+    if (normalize3) (tr2 || (tr2 = state.tr)).setSelection(normalize3);
     return tr2;
   }
   var fixTablesKey = new PluginKey("fix-tables");
@@ -28303,6 +28357,9 @@ ${line}
   var deploymentTimer;
   var backupTimer;
   var submittingPublication = false;
+  var libraryType = "all";
+  var selectedPhoto = null;
+  var selectedPhotoSource = null;
   var status = (t) => $2("#save-status").textContent = t;
   var notify = (t) => {
     $2("#toast").textContent = t;
@@ -28335,6 +28392,7 @@ ${line}
   }
   function markDirty() {
     entry.dirty = true;
+    entry.editedAt = (/* @__PURE__ */ new Date()).toISOString();
     renderPublication();
   }
   function renderPublication() {
@@ -28434,13 +28492,7 @@ ${line}
           if (n.type.name === "figure" && n.attrs.blockId === figure.dataset.blockId) found2 = { n, p };
         });
         if (found2) {
-          remember();
-          figurePosition = found2.p;
-          $2("#photo-form").reset();
-          $2("#photo-file").required = false;
-          $2("#photo-alt").value = found2.n.attrs.alt;
-          $2("#photo-caption").value = found2.n.attrs.caption;
-          $2("#photo-dialog").showModal();
+          openPhoto(found2);
           return true;
         }
       }
@@ -28597,14 +28649,75 @@ ${line}
   }
   function library() {
     capture();
-    $2("#library-search").value = "";
     renderLibrary();
     $2("#library-dialog").showModal();
+    $2("#library-search").focus();
   }
   function renderLibrary() {
-    const q2 = $2("#library-search").value.toLowerCase();
-    $2("#library-items").innerHTML = book.filter((e) => (e.title + " " + folioLabel(e) + " " + e.type).toLowerCase().includes(q2)).map((e) => `<button class="library-row" data-load="${e.entryId}"><small>${esc(folioLabel(e))}</small><strong>${esc(e.title || "Untitled")}</strong><span>${esc(e.description)}</span></button>`).join("");
+    const query = $2("#library-search").value;
+    const items = libraryEntries(book, { query, type: libraryType, state: $2("#library-state").value, sort: $2("#library-sort").value }, connection);
+    for (const item of document.querySelectorAll("[data-type-count]")) item.textContent = String(item.dataset.typeCount === "all" ? book.length : book.filter((e) => e.type === item.dataset.typeCount).length);
+    for (const button of document.querySelectorAll("[data-library-type]")) button.setAttribute("aria-pressed", String(button.dataset.libraryType === libraryType));
+    $2("#library-count").textContent = items.length + " of " + book.length + " entries";
+    $2("#library-items").innerHTML = items.map((e) => {
+      const title = e.title || "Untitled " + e.type.toLowerCase(), date = editedDate(e), state = entryState(e, connection), src = e.type === "Sketch" ? firstImage(e.body) : "";
+      let excerpt = e.description || documentText(e.body);
+      if (query && !(e.title + " " + e.description).toLowerCase().includes(query.toLowerCase())) {
+        const body = documentText(e.body), at = body.toLowerCase().indexOf(query.toLowerCase());
+        if (at >= 0) excerpt = (at > 40 ? "\u2026" : "") + body.slice(Math.max(0, at - 40), at + 130);
+      }
+      return `<button class="library-row" data-load="${e.entryId}" ${e === entry ? 'aria-current="page"' : ""}><span class="library-folio"><small>${esc(folioLabel(e))}</small><span>${esc(e.type)}</span></span><span class="library-copy"><strong>${esc(title)}</strong><span>${esc(excerpt.slice(0, 170))}</span></span>${src ? `<img class="library-thumbnail" src="${esc(src)}" alt="" loading="lazy">` : ""}<span class="library-metadata"><span class="library-state">${esc(state)}</span>${date ? `<time datetime="${esc(date)}">${esc(new Date(date.length === 10 ? date + "T12:00:00" : date).toLocaleDateString(void 0, { day: "numeric", month: "short", year: "numeric" }))}</time>` : ""}</span></button>`;
+    }).join("") || '<div class="library-empty"><h3>No matching entries.</h3><p>Try another word, type, or status, or clear the filters.</p></div>';
+    $2("#library-items").scrollTop = 0;
   }
+  function newEntry(type) {
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const e = migrate({ entryId: String(Math.max(41, ...book.map((x2) => Number(x2.entryId) || 0)) + 1).padStart(3, "0"), title: "", description: "", type, createdAt: now, editedAt: now, originalDate: today(), paragraphs: [], notes: [], connected: [], published: null }, parse);
+    book.unshift(e);
+    for (const menu of document.querySelectorAll(".new-entry-menu")) menu.open = false;
+    load(e);
+    sync();
+    window.scrollTo({ top: 0 });
+    if (type === "Sketch") openPhoto();
+  }
+  function openPhoto(figure = null) {
+    remember();
+    figurePosition = figure?.p ?? null;
+    selectedPhoto = null;
+    selectedPhotoSource = null;
+    $2("#photo-form").reset();
+    $2("#photo-error").textContent = "";
+    $2("#photo-file").required = !figure;
+    $2("#photo-preview").hidden = !figure;
+    if (figure) {
+      $2("#photo-alt").value = figure.n.attrs.alt;
+      $2("#photo-caption").value = figure.n.attrs.caption;
+      $2("#photo-preview-image").src = figure.n.attrs.src;
+    } else $2("#photo-preview-image").removeAttribute("src");
+    $2("#photo-dialog").showModal();
+  }
+  $2("#photo-file").onchange = async () => {
+    const file = $2("#photo-file").files[0];
+    selectedPhoto = file;
+    selectedPhotoSource = null;
+    $2("#photo-error").textContent = imageError(file);
+    $2("#photo-preview").hidden = true;
+    if (imageError(file)) return;
+    try {
+      const source = await readOriginalImage(file);
+      if (selectedPhoto !== file) return;
+      selectedPhotoSource = source;
+      $2("#photo-preview-image").src = source;
+      $2("#photo-preview").hidden = false;
+    } catch (error) {
+      $2("#photo-error").textContent = error.message;
+    }
+  };
+  $2("#photo-dialog").addEventListener("close", () => {
+    selectedPhoto = null;
+    selectedPhotoSource = null;
+    $2("#photo-preview-image").removeAttribute("src");
+  });
   function ideas() {
     const q2 = $2("#idea-search").value.toLowerCase();
     $2("#idea-results").innerHTML = book.filter((e) => e !== entry && (e.title + " " + folioLabel(e)).toLowerCase().includes(q2)).map((e) => `<label class="idea-option"><input type="checkbox" data-connect="${e.entryId}" ${(entry.connected || []).includes(e.entryId) ? "checked" : ""}> ${esc(e.title || "Untitled")} \xB7 ${esc(folioLabel(e))}</label>`).join("");
@@ -28696,6 +28809,11 @@ ${line}
   document.addEventListener("click", (e) => {
     const b2 = e.target.closest("button");
     if (!b2) return;
+    if (b2.dataset.newEntry) newEntry(b2.dataset.newEntry);
+    if (b2.dataset.libraryType) {
+      libraryType = b2.dataset.libraryType;
+      renderLibrary();
+    }
     if (b2.dataset.command) command2(b2.dataset.command);
     if (b2.dataset.editNote) openNote(records()[b2.dataset.editNote]?.kind, b2.dataset.editNote);
     if (b2.dataset.editRevision) openRevision(b2.dataset.editRevision);
@@ -28725,11 +28843,7 @@ ${line}
       if (v2 === "side" || v2 === "footnote") openNote(v2);
       else if (v2 === "revision") openRevision();
       else if (v2 === "image") {
-        remember();
-        figurePosition = null;
-        $2("#photo-form").reset();
-        $2("#photo-file").required = true;
-        $2("#photo-dialog").showModal();
+        openPhoto();
       } else if (v2 === "markdown") {
         remember();
         $2("#markdown-dialog").showModal();
@@ -28783,24 +28897,21 @@ ${line}
       $2("#photo-dialog").close();
       return;
     }
-    if (!file || file.size > 2097152 || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
-      $2("#photo-error").textContent = "Choose a supported image up to 2 MB.";
+    if (imageError(file)) {
+      $2("#photo-error").textContent = imageError(file);
       return;
     }
-    const src = await new Promise((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result);
-      r.readAsDataURL(file);
-    });
-    restore();
-    if (figurePosition !== null) {
-      const pos = figurePosition;
-      transact((tr2) => tr2.setNodeMarkup(pos, void 0, { ...tr2.doc.nodeAt(pos).attrs, src, alt: $2("#photo-alt").value, caption: $2("#photo-caption").value }));
+    try {
+      const src = selectedPhoto === file && selectedPhotoSource ? selectedPhotoSource : await readOriginalImage(file);
+      restore();
+      if (figurePosition !== null) {
+        const pos = figurePosition;
+        transact((tr2) => tr2.setNodeMarkup(pos, void 0, { ...tr2.doc.nodeAt(pos).attrs, src, alt: $2("#photo-alt").value, caption: $2("#photo-caption").value }));
+      } else editor.chain().focus().insertContent({ type: "figure", attrs: { blockId: uid(), annotations: [], src, alt: $2("#photo-alt").value, caption: $2("#photo-caption").value } }).run();
       $2("#photo-dialog").close();
-      return;
+    } catch (error) {
+      $2("#photo-error").textContent = error.message;
     }
-    editor.chain().focus().insertContent({ type: "figure", attrs: { blockId: uid(), annotations: [], src, alt: $2("#photo-alt").value, caption: $2("#photo-caption").value } }).run();
-    $2("#photo-dialog").close();
   };
   $2("#add-link").onclick = () => {
     remember();
@@ -28838,13 +28949,18 @@ ${line}
   $2("#write-tab").onclick = library;
   $2("#show-library").onclick = library;
   $2("#library-search").oninput = renderLibrary;
+  $2("#library-state").onchange = renderLibrary;
+  $2("#library-sort").onchange = renderLibrary;
   $2("#close-library").onclick = () => $2("#library-dialog").close();
-  $2("#new-entry").onclick = () => {
-    const e = migrate({ entryId: String(Math.max(41, ...book.map((x2) => Number(x2.entryId) || 0)) + 1).padStart(3, "0"), title: "", description: "", type: "Note", originalDate: today(), paragraphs: [], notes: [], connected: [], published: null }, parse);
-    book.unshift(e);
-    load(e);
-    sync();
+  $2("#clear-library").onclick = () => {
+    libraryType = "all";
+    $2("#library-search").value = "";
+    $2("#library-state").value = "all";
+    $2("#library-sort").value = "edited";
+    renderLibrary();
+    $2("#library-search").focus();
   };
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver((items) => document.documentElement.style.setProperty("--actionbar-height", items[0].target.getBoundingClientRect().height + "px")).observe($2(".actionbar"));
   $2("#connect-idea").onclick = () => {
     $2("#idea-search").value = "";
     ideas();

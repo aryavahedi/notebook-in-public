@@ -16,13 +16,23 @@ npm run build
 python3 server.py --port 4321
 ```
 
-Open http://localhost:4321/?v=publishing-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
+Open http://localhost:4321/?v=library-photos-1 . The compiled editor is included, so npm installation/build is needed only when changing source. Keep the local Python server running while writing. Data saves outside the served folder in `../notebook-data/notebook.sqlite3`.
 
 With a GitHub checkout connected, **Publish to website** creates a published snapshot and sends the public-only export to GitHub Pages. The editor shows Draft, Unpublished changes, Deploying or Live, with a View live page link and a retry action. You can keep writing while deployment runs; later edits remain private. Unpublish removes the page online while preserving the draft.
 
 To connect a checkout for the first time, add `--github-repo-dir /path/to/notebook-in-public` when starting the server. The connection is remembered in the private notebook-data folder. No tokens are stored in the browser or project source; the service uses the existing GitHub CLI sign-in. Without a checkout, the editor labels publication as a local copy.
 
 Download published website still exports a static ZIP. See LIVE-PUBLISHING.md for background jobs, retry behavior and setup.
+
+## Find and create entries
+
+Open **Library** to search titles, descriptions, passages, annotations, image descriptions or folio numbers. Filter by Essay, Note or Sketch and publication status. Sort by recent edits, title or folio. Sketches include a small image preview. Entries without a recorded edit time use their publication or original date until edited.
+
+The **+ New** menu remains in the writing toolbar while you scroll. The Library also keeps **+ New entry**, search and filters above the scrolling results. Choose Essay, Note or Sketch; a new Sketch opens the photo picker immediately.
+
+## Photos
+
+Uploads retain the original file bytes, embedded color profile and metadata, with a normal-brightness preview before insertion. The editor and reader use `dynamic-range-limit: standard` to cap HDR highlight boosts where the browser supports it. This changes display only; it does not re-encode or adjust the original photo. Unsupported browsers retain their native image rendering.
 
 ## Check
 
