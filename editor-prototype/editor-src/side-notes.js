@@ -42,7 +42,7 @@ export function installSideNoteInteractions(root=document){
   article.dataset.activeSideNote=label;highlight(article,label);
   if(event.target.closest('[data-side-back]')){article.querySelector(`[data-side-ref="${label}"]`)?.focus();return}
   if(!el.matches('[data-side-ref],[data-side-anchor]')||event.target.closest('a'))return;
-  const mobile=article.querySelector(`#side-inline-${label}`),margin=article.querySelector(`#side-margin-${label}`);
+  const mobile=article.querySelector(`.inline-note[data-side-note="${label}"]`),margin=article.querySelector(`.preview-margin-entry[data-side-note="${label}"]`);
   if(mobile&&getComputedStyle(mobile).display!=='none'){mobile.open=true;mobile.querySelector('summary').focus()}
   else margin?.querySelector('[data-side-back]')?.focus();
  });

@@ -1,6 +1,7 @@
 import {folioLabel,paragraphReference} from './folio.js';
 import {render,esc} from './document.js';
 import {decorateSideNotes,sideNoteHTML,installSideNoteInteractions} from './side-notes.js';
+import {installReadingCompanion} from './reading-companion.js';
 export function makeArticle(data,catalogue){
   const records=data.body.attrs.annotations||{},prefix=e=>({Essay:'e.',Note:'n.',Sketch:'s.'})[e.type]||'e.';
   const format=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
@@ -46,6 +47,7 @@ export function homepageSketch(entry){
 }
 async function initialize(){
  const mode=document.body?.dataset.contentSource;if(!mode)return;
+ installReadingCompanion();
  try{
   let items,packet;
   if(mode==='published'){

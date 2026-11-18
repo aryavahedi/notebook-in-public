@@ -25,3 +25,43 @@ test('clicking a side-note marker opens its mobile note, return restores focus, 
  const marker=document.querySelector('[data-side-ref="a"]'),mobile=document.querySelector('#side-inline-a');marker.click();assert.equal(mobile.open,true);assert.equal(document.activeElement,mobile.querySelector('summary'));assert.ok(document.querySelector('[data-side-anchor]').classList.contains('side-note-active'));
  mobile.querySelector('[data-side-back]').click();assert.equal(document.activeElement,marker);marker.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal(document.querySelectorAll('.side-note-active').length,0);
 });
+
+test('linked notebook entries open beside the source and keep their footnotes in the companion', async () => {
+ const source = e('080', 'Source essay');
+ const related = {...e('081', 'Related note'), type: 'Note'};
+ const next = {...e('082', 'Another note'), type: 'Note'};
+ source.connected = [related.entryId];
+ related.connected = [next.entryId];
+ related.body.attrs.annotations.f = {id: 'f', kind: 'footnote', text: 'Local footnote'};
+ related.body.content[0].content.push({type: 'footnote', attrs: {id: 'f'}});
+ source.body.content[0].content.push({
+  type: 'text', text: 'Inline link', marks: [
+   {type: 'link', attrs: {href: 'https://aryavahedi.github.io/notebook-in-public/#/entry/081', target: '_blank'}},
+  ],
+ });
+ const items = [source, related, next];
+ w.location.hash = '/entry/080';
+ w.FolioSite.installCatalogue(items, (entry, show) => makeArticle(entry, items)(show));
+ w.matchMedia = () => ({matches: true, addEventListener() {}});
+ w.scrollBy = () => {};
+ w.HTMLDialogElement.prototype.show = function () { this.open = true; };
+ w.HTMLDialogElement.prototype.close = function () { this.open = false; };
+ const {installReadingCompanion} = await import('./reading-companion.js');
+ const pane = installReadingCompanion();
+ const original = document.querySelector('#main .prose a');
+ const open = link => link.dispatchEvent(new w.MouseEvent('click', {bubbles: true, cancelable: true}));
+ assert.equal(open(original), false);
+ assert.equal(w.location.hash, '#/entry/080');
+ assert.equal(document.querySelector('#main .essay-title').textContent, source.title);
+ assert.equal(pane.querySelector('.essay-title').textContent, related.title);
+ assert.equal(pane.querySelector('[data-companion-full]').getAttribute('href'), '#/entry/081');
+ assert.equal(open(pane.querySelector('#companion-ref-1')), false);
+ assert.equal(document.activeElement.id, 'companion-fn-1');
+ assert.equal(open(pane.querySelector('.thought-thread a')), false);
+ assert.equal(pane.querySelector('.essay-title').textContent, next.title);
+ pane.querySelector('[data-companion-back]').click();
+ assert.equal(pane.querySelector('.essay-title').textContent, related.title);
+ pane.querySelector('[data-companion-close]').click();
+ assert.equal(pane.open, false);
+ assert.equal(document.activeElement, original);
+});
