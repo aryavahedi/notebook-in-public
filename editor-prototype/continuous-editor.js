@@ -28360,13 +28360,18 @@ ${line}
   var deploymentTimer;
   var backupTimer;
   var submittingPublication = false;
-  var libraryType = "all";
   var selectedPhoto = null;
   var selectedPhotoSource = null;
   var libraryTrash = false;
   var deleteEntryId = null;
   var deleteEntryAction = "trash";
   var changingEntry = false;
+  var libraryViews = {
+    library: { query: "", type: "all", state: "all", sort: "edited" },
+    trash: { query: "", type: "all", state: "all", sort: "edited" }
+  };
+  var currentLibraryView = () => libraryViews[libraryTrash ? "trash" : "library"];
+  var previewStorageKey = "folio-draft-preview";
   var availableEntries = () => book.filter((e) => !e.trashedAt);
   var status = (t) => $2("#save-status").textContent = t;
   var notify = (t) => {
@@ -28684,8 +28689,12 @@ ${line}
     $2("#library-search").focus();
   }
   function renderLibrary() {
-    const query = $2("#library-search").value;
-    const items = libraryEntries(book, { query, type: libraryType, state: libraryTrash ? "all" : $2("#library-state").value, sort: $2("#library-sort").value, trash: libraryTrash }, connection);
+    const filters = currentLibraryView();
+    const { query, type } = filters;
+    const items = libraryEntries(book, { ...filters, trash: libraryTrash }, connection);
+    if ($2("#library-search").value !== query) $2("#library-search").value = query;
+    $2("#library-state").value = filters.state;
+    $2("#library-sort").value = filters.sort;
     const group = book.filter((e) => !e.deletedAt && Boolean(e.trashedAt) === libraryTrash);
     $2("#library-title").textContent = libraryTrash ? "Trash" : "Your notebook";
     $2(".library-header .hint").textContent = libraryTrash ? "Restore an entry or delete it permanently from this notebook." : "Find something to return to, or start a new page.";
@@ -28696,7 +28705,7 @@ ${line}
     $2("#library-state").disabled = libraryTrash;
     $2("#library-count").textContent = "";
     for (const item of document.querySelectorAll("[data-type-count]")) item.textContent = String(item.dataset.typeCount === "all" ? group.length : group.filter((e) => e.type === item.dataset.typeCount).length);
-    for (const button of document.querySelectorAll("[data-library-type]")) button.setAttribute("aria-pressed", String(button.dataset.libraryType === libraryType));
+    for (const button of document.querySelectorAll("[data-library-type]")) button.setAttribute("aria-pressed", String(button.dataset.libraryType === type));
     $2("#library-count").textContent = items.length + " of " + group.length + (libraryTrash ? " entries in Trash" : " entries");
     $2("#library-items").innerHTML = items.map((e) => {
       const title = e.title || "Untitled " + e.type.toLowerCase(), date = editedDate(e), state = entryState(e, connection), src = e.type === "Sketch" ? firstImage(e.body) : "";
@@ -28707,7 +28716,7 @@ ${line}
       }
       const blocked = e.publication?.status === "published", action = e.trashedAt ? `<div class="library-entry-actions"><button class="library-entry-action" data-restore-entry="${e.entryId}" aria-label="Restore ${esc(title)}">Restore</button><button class="library-entry-action danger-text" data-delete-entry="${e.entryId}" aria-label="Delete ${esc(title)} permanently">Delete permanently</button></div>` : `<button class="library-entry-action danger-text" data-trash-entry="${e.entryId}" aria-label="Move ${esc(title)} to Trash" ${blocked ? 'disabled title="Unpublish this page first"' : ""}>${blocked ? "Unpublish first" : "Move to Trash"}</button>`;
       return `<div class="library-item"><button class="library-row" data-load="${e.entryId}" ${e.trashedAt ? "disabled" : ""} ${e === entry ? 'aria-current="page"' : ""}><span class="library-folio"><small>${esc(folioLabel(e))}</small><span>${esc(e.type)}</span></span><span class="library-copy"><strong>${esc(title)}</strong><span>${esc(excerpt.slice(0, 170))}</span></span>${src ? `<img class="library-thumbnail" src="${esc(src)}" alt="" loading="lazy">` : ""}<span class="library-metadata"><span class="library-state">${esc(state)}</span>${date ? `<time datetime="${esc(date)}">${esc(new Date(date.length === 10 ? date + "T12:00:00" : date).toLocaleDateString(void 0, { day: "numeric", month: "short", year: "numeric" }))}</time>` : ""}</span></button>${action}</div>`;
-    }).join("") || `<div class="library-empty"><h3>${libraryTrash ? "Nothing in Trash." : "No matching entries."}</h3><p>${libraryTrash ? "Deleted entries will appear here, ready to restore." : "Try another word, type, or status, or clear the filters."}</p></div>`;
+    }).join("") || `<div class="library-empty"><h3>${libraryTrash && !group.length ? "Trash is empty." : "No matching entries."}</h3><p>${libraryTrash && !group.length ? "Entries you move to Trash will appear here." : "Try a different search or clear the filters."}</p></div>`;
     $2("#library-items").scrollTop = 0;
   }
   function askTrash(id, permanent = false) {
@@ -28817,20 +28826,39 @@ ${line}
   }
   function preview(published = false) {
     capture();
+    if (!entry) return;
+    const frame = $2("#website-frame");
+    const entryRoute = "#/entry/" + encodeURIComponent(entry.entryId);
     if (published) {
-      $2("#website-frame").src = "/published/#/entry/" + encodeURIComponent(entry.entryId);
+      frame.src = "/published/" + entryRoute;
+      sessionStorage.removeItem(previewStorageKey);
       $2("#preview-source").textContent = "Published website \xB7 on this Mac";
     } else {
-      const key = "folio-preview-" + uid();
-      const items = book.filter((e) => !e.trashedAt && e.publication?.status === "published" && e.entryId !== entry.entryId).map((e) => e.published);
-      items.push(entry);
+      const entries = book.filter((other) => !other.trashedAt && other.published && other.publication?.status === "published" && other.entryId !== entry.entryId).map((other) => other.published);
       try {
-        sessionStorage.setItem(key, JSON.stringify({ entries: items, entry }));
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          if (/^folio-preview-[a-f0-9]{32}$/.test(key)) sessionStorage.removeItem(key);
+        }
+        sessionStorage.setItem(previewStorageKey, JSON.stringify({ entries, entry: {
+          schemaVersion: entry.schemaVersion,
+          entryId: entry.entryId,
+          type: entry.type,
+          title: entry.title,
+          description: entry.description,
+          originalDate: entry.originalDate,
+          body: entry.body,
+          connected: entry.connected,
+          publication: entry.publication,
+          folioNumber: entry.folioNumber,
+          folioType: entry.folioType,
+          folioNumbers: entry.folioNumbers
+        } }));
       } catch {
-        notify("Preview is too large for browser storage. Try a smaller image.");
+        notify("This preview exceeds the browser\u2019s storage limit. Try a smaller image.");
         return;
       }
-      $2("#website-frame").src = "site/?continuous=1&preview=" + key + "&v=" + Date.now() + "#/entry/" + encodeURIComponent(entry.entryId);
+      frame.src = "site/?continuous=1&preview=" + previewStorageKey + "&v=" + Date.now() + entryRoute;
       $2("#preview-source").textContent = "Draft \xB7 website preview";
     }
     $2("#website-preview").hidden = false;
@@ -28839,6 +28867,8 @@ ${line}
   }
   function closePreview() {
     $2("#website-preview").hidden = true;
+    $2("#website-frame").removeAttribute("src");
+    sessionStorage.removeItem(previewStorageKey);
     $2(".workspace").inert = false;
     editor.commands.focus();
   }
@@ -28907,7 +28937,7 @@ ${line}
     if (b2.dataset.restoreEntry) changeEntry(b2.dataset.restoreEntry, "restore");
     if (b2.dataset.newEntry) newEntry(b2.dataset.newEntry);
     if (b2.dataset.libraryType) {
-      libraryType = b2.dataset.libraryType;
+      currentLibraryView().type = b2.dataset.libraryType;
       renderLibrary();
     }
     if (b2.dataset.command) command2(b2.dataset.command);
@@ -29050,15 +29080,21 @@ ${line}
   $2("#confirm-trash").onclick = () => changeEntry(deleteEntryId, deleteEntryAction);
   $2("#write-tab").onclick = library;
   $2("#show-library").onclick = library;
-  $2("#library-search").oninput = renderLibrary;
-  $2("#library-state").onchange = renderLibrary;
-  $2("#library-sort").onchange = renderLibrary;
+  $2("#library-search").oninput = (event) => {
+    currentLibraryView().query = event.target.value;
+    renderLibrary();
+  };
+  $2("#library-state").onchange = (event) => {
+    currentLibraryView().state = event.target.value;
+    renderLibrary();
+  };
+  $2("#library-sort").onchange = (event) => {
+    currentLibraryView().sort = event.target.value;
+    renderLibrary();
+  };
   $2("#close-library").onclick = () => $2("#library-dialog").close();
   $2("#clear-library").onclick = () => {
-    libraryType = "all";
-    $2("#library-search").value = "";
-    $2("#library-state").value = "all";
-    $2("#library-sort").value = "edited";
+    Object.assign(currentLibraryView(), { query: "", type: "all", state: "all", sort: "edited" });
     renderLibrary();
     $2("#library-search").focus();
   };

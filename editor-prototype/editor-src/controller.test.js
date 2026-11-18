@@ -76,3 +76,54 @@ test('Trash permanent deletion names the entry, requires its confirmation, and r
   assert.equal(h.w.document.querySelector('#empty-notebook').hidden,false);
  }finally{h.dom.window.close()}
 });
+
+test('repeated image previews clear their payload and do not retain earlier snapshots', async () => {
+ const draft = entry();
+ draft.body.content.unshift({
+  type: 'figure',
+  attrs: {blockId: 'photo', src: 'data:image/jpeg;base64,' + 'A'.repeat(1_000_000), alt: 'Size fixture'},
+ });
+ const h = await boot(draft);
+ try {
+  const $ = selector => h.w.document.querySelector(selector);
+  h.w.sessionStorage.setItem('folio-preview-' + 'a'.repeat(32), 'X'.repeat(4_500_000));
+  h.w.sessionStorage.setItem('unrelated-setting', 'keep');
+  for (let i = 0; i < 8; i++) {
+   $('#preview').click();
+   assert.equal($('#website-preview').hidden, false);
+   const url = new URL($('#website-frame').src);
+   const packet = JSON.parse(h.w.sessionStorage.getItem(url.searchParams.get('preview')));
+   assert.equal(packet.entry.body.content[0].attrs.src, draft.body.content[0].attrs.src);
+   assert.deepEqual(packet.entries, []);
+   $('#back-to-editor').click();
+   assert.equal(h.w.sessionStorage.length, 1);
+   assert.equal(h.w.sessionStorage.getItem('unrelated-setting'), 'keep');
+  }
+ } finally { h.dom.window.close(); }
+});
+
+test('Trash and Library keep separate searches and filters', async () => {
+ const h = await boot([entry(), {...entry('042'), type: 'Sketch', title: 'A deleted sketch', trashedAt: '2026-11-17'}]);
+ try {
+  const $ = selector => h.w.document.querySelector(selector);
+  const search = $('#library-search');
+  const type = filter => $(`[data-library-type="${filter}"]`);
+  $('#show-library').click();
+  search.value = 'Original';
+  search.dispatchEvent(new h.w.Event('input'));
+  type('Essay').click();
+  $('#show-trash').click();
+  assert.equal(search.value, '');
+  assert.ok($('[data-restore-entry="042"]'));
+  search.value = 'No such entry';
+  search.dispatchEvent(new h.w.Event('input'));
+  assert.match($('#library-items').textContent, /No matching entries/);
+  $('#show-trash').click();
+  assert.equal(search.value, 'Original');
+  assert.equal(type('Essay').getAttribute('aria-pressed'), 'true');
+  $('#show-trash').click();
+  assert.equal(search.value, 'No such entry');
+  $('#clear-library').click();
+  assert.ok($('[data-restore-entry="042"]'));
+ } finally { h.dom.window.close(); }
+});

@@ -9,7 +9,14 @@ const $=s=>document.querySelector(s),today=()=>new Date().toLocaleDateString('en
 const parse=html=>generateJSON(html,extensions());
 let book=[],entry,editor,revision=0,pending=false,busy=false,timer,ready=false,selection=null,editing=null,mode='side',metadataFocused=false,changeCounter=0,figurePosition=null,publicationAction='publish';
 let connection=null,deploymentTimer,backupTimer,submittingPublication=false;
-let libraryType='all',selectedPhoto=null,selectedPhotoSource=null,libraryTrash=false,deleteEntryId=null,deleteEntryAction='trash',changingEntry=false;
+let selectedPhoto=null,selectedPhotoSource=null,libraryTrash=false,deleteEntryId=null,deleteEntryAction='trash',changingEntry=false;
+const libraryViews = {
+  library: {query: '', type: 'all', state: 'all', sort: 'edited'},
+  trash: {query: '', type: 'all', state: 'all', sort: 'edited'},
+};
+const currentLibraryView = () => libraryViews[libraryTrash ? 'trash' : 'library'];
+const previewStorageKey = 'folio-draft-preview';
+
 const availableEntries=()=>book.filter(e=>!e.trashedAt);
 const status=t=>$('#save-status').textContent=t;
 const notify=t=>{ $('#toast').textContent=t;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),4000)};
@@ -57,18 +64,23 @@ function command(c){const chain=editor.chain().focus();const map={bold:'toggleBo
 function download(name,data){capture();const u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function library(){capture();renderLibrary();$('#library-dialog').showModal();$('#library-search').focus()}
 function renderLibrary(){
- const query=$('#library-search').value;const items=libraryEntries(book,{query,type:libraryType,state:libraryTrash?'all':$('#library-state').value,sort:$('#library-sort').value,trash:libraryTrash},connection);
+ const filters = currentLibraryView();
+ const {query, type} = filters;
+ const items = libraryEntries(book, {...filters, trash: libraryTrash}, connection);
+ if ($('#library-search').value !== query) $('#library-search').value = query;
+ $('#library-state').value = filters.state;
+ $('#library-sort').value = filters.sort;
  const group=book.filter(e=>!e.deletedAt&&Boolean(e.trashedAt)===libraryTrash);
  $('#library-title').textContent=libraryTrash?'Trash':'Your notebook';$('.library-header .hint').textContent=libraryTrash?'Restore an entry or delete it permanently from this notebook.':'Find something to return to, or start a new page.';$('#show-trash').setAttribute('aria-pressed',String(libraryTrash));$('#trash-toggle-label').textContent=libraryTrash?'← Library':'Trash';$('#trash-count').hidden=libraryTrash;$('#trash-count').textContent=book.filter(e=>e.trashedAt&&!e.deletedAt).length;$('#library-state').disabled=libraryTrash;$('#library-count').textContent='';
  for(const item of document.querySelectorAll('[data-type-count]'))item.textContent=String(item.dataset.typeCount==='all'?group.length:group.filter(e=>e.type===item.dataset.typeCount).length);
- for(const button of document.querySelectorAll('[data-library-type]'))button.setAttribute('aria-pressed',String(button.dataset.libraryType===libraryType));
+ for(const button of document.querySelectorAll('[data-library-type]'))button.setAttribute('aria-pressed',String(button.dataset.libraryType===type));
  $('#library-count').textContent=items.length+' of '+group.length+(libraryTrash?' entries in Trash':' entries');
  $('#library-items').innerHTML=items.map(e=>{
   const title=e.title||'Untitled '+e.type.toLowerCase(),date=editedDate(e),state=entryState(e,connection),src=e.type==='Sketch'?firstImage(e.body):'';
   let excerpt=e.description||documentText(e.body);if(query&&!((e.title+' '+e.description).toLowerCase().includes(query.toLowerCase()))){const body=documentText(e.body),at=body.toLowerCase().indexOf(query.toLowerCase());if(at>=0)excerpt=(at>40?'…':'')+body.slice(Math.max(0,at-40),at+130)}
   const blocked=e.publication?.status==='published',action=e.trashedAt?`<div class="library-entry-actions"><button class="library-entry-action" data-restore-entry="${e.entryId}" aria-label="Restore ${esc(title)}">Restore</button><button class="library-entry-action danger-text" data-delete-entry="${e.entryId}" aria-label="Delete ${esc(title)} permanently">Delete permanently</button></div>`:`<button class="library-entry-action danger-text" data-trash-entry="${e.entryId}" aria-label="Move ${esc(title)} to Trash" ${blocked?'disabled title="Unpublish this page first"':''}>${blocked?'Unpublish first':'Move to Trash'}</button>`;
   return `<div class="library-item"><button class="library-row" data-load="${e.entryId}" ${e.trashedAt?'disabled':''} ${e===entry?'aria-current="page"':''}><span class="library-folio"><small>${esc(folioLabel(e))}</small><span>${esc(e.type)}</span></span><span class="library-copy"><strong>${esc(title)}</strong><span>${esc(excerpt.slice(0,170))}</span></span>${src?`<img class="library-thumbnail" src="${esc(src)}" alt="" loading="lazy">`:''}<span class="library-metadata"><span class="library-state">${esc(state)}</span>${date?`<time datetime="${esc(date)}">${esc(new Date(date.length===10?date+'T12:00:00':date).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}))}</time>`:''}</span></button>${action}</div>`
- }).join('')||`<div class="library-empty"><h3>${libraryTrash?'Nothing in Trash.':'No matching entries.'}</h3><p>${libraryTrash?'Deleted entries will appear here, ready to restore.':'Try another word, type, or status, or clear the filters.'}</p></div>`;
+ }).join('')||`<div class="library-empty"><h3>${libraryTrash&&!group.length?'Trash is empty.':'No matching entries.'}</h3><p>${libraryTrash&&!group.length?'Entries you move to Trash will appear here.':'Try a different search or clear the filters.'}</p></div>`;
  $('#library-items').scrollTop=0;
 }
 function askTrash(id,permanent=false){
@@ -101,9 +113,50 @@ $('#photo-file').onchange=async()=>{const file=$('#photo-file').files[0];selecte
 $('#photo-dialog').addEventListener('close',()=>{selectedPhoto=null;selectedPhotoSource=null;$('#photo-preview-image').removeAttribute('src')});
 
 function ideas(){const q=$('#idea-search').value.toLowerCase();$('#idea-results').innerHTML=book.filter(e=>!e.trashedAt&&e!==entry&&(e.title+' '+folioLabel(e)).toLowerCase().includes(q)).map(e=>`<label class="idea-option"><input type="checkbox" data-connect="${e.entryId}" ${(entry.connected||[]).includes(e.entryId)?'checked':''}> ${esc(e.title||'Untitled')} · ${esc(folioLabel(e))}</label>`).join('')}
-function preview(published=false){capture();if(published){$('#website-frame').src='/published/#/entry/'+encodeURIComponent(entry.entryId);$('#preview-source').textContent='Published website · on this Mac'}else{const key='folio-preview-'+uid();const items=book.filter(e=>!e.trashedAt&&e.publication?.status==='published'&&e.entryId!==entry.entryId).map(e=>e.published);items.push(entry);try{sessionStorage.setItem(key,JSON.stringify({entries:items,entry}))}catch{notify('Preview is too large for browser storage. Try a smaller image.');return}$('#website-frame').src='site/?continuous=1&preview='+key+'&v='+Date.now()+'#/entry/'+encodeURIComponent(entry.entryId);$('#preview-source').textContent='Draft · website preview'}$('#website-preview').hidden=false;$('.workspace').inert=true;$('#back-to-editor').focus()}
+function preview(published = false) {
+ capture();
+ if (!entry) return;
+ const frame = $('#website-frame');
+ const entryRoute = '#/entry/' + encodeURIComponent(entry.entryId);
+ if (published) {
+  frame.src = '/published/' + entryRoute;
+  sessionStorage.removeItem(previewStorageKey);
+  $('#preview-source').textContent = 'Published website · on this Mac';
+ } else {
+  const entries = book.filter(other => !other.trashedAt && other.published &&
+    other.publication?.status === 'published' && other.entryId !== entry.entryId)
+    .map(other => other.published);
+  try {
+   // Remove saved previews left by earlier versions of the Writing Room.
+   for (let i = sessionStorage.length - 1; i >= 0; i--) {
+    const key = sessionStorage.key(i);
+    if (/^folio-preview-[a-f0-9]{32}$/.test(key)) sessionStorage.removeItem(key);
+   }
+   sessionStorage.setItem(previewStorageKey, JSON.stringify({entries, entry: {
+    schemaVersion: entry.schemaVersion, entryId: entry.entryId, type: entry.type,
+    title: entry.title, description: entry.description, originalDate: entry.originalDate,
+    body: entry.body, connected: entry.connected, publication: entry.publication,
+    folioNumber: entry.folioNumber, folioType: entry.folioType, folioNumbers: entry.folioNumbers,
+   }}));
+  } catch {
+   notify('This preview exceeds the browser’s storage limit. Try a smaller image.');
+   return;
+  }
+  frame.src = 'site/?continuous=1&preview=' + previewStorageKey + '&v=' + Date.now() + entryRoute;
+  $('#preview-source').textContent = 'Draft · website preview';
+ }
+ $('#website-preview').hidden = false;
+ $('.workspace').inert = true;
+ $('#back-to-editor').focus();
+}
 
-function closePreview(){$('#website-preview').hidden=true;$('.workspace').inert=false;editor.commands.focus()}
+function closePreview() {
+ $('#website-preview').hidden = true;
+ $('#website-frame').removeAttribute('src');
+ sessionStorage.removeItem(previewStorageKey);
+ $('.workspace').inert = false;
+ editor.commands.focus();
+}
 async function start(){try{const r=await fetch('/api/notebook');if(!r.ok)throw Error('Start the local writing server to save your notebook.');const data=await r.json();revision=data.revision;let old=data.notebook;if(!old){const entries=JSON.parse(localStorage.getItem('living-folio-library-v1')||'[]');old={entries:entries.length?entries:[window.editorContent],activeId:entries[0]?.entryId||'041'}}book=old.entries.map(e=>migrate({...e,entryId:e.entryId||'041'},parse));const needsSave=!data.notebook||JSON.stringify(book)!==JSON.stringify(old.entries);entry=undefined;ready=true;load(availableEntries().find(e=>e.entryId===old.activeId)||availableEntries()[0]);if(needsSave)sync();await flush();if(!pending&&!busy)status('Saved to your Mac');$('.prototype').textContent='LOCAL NOTEBOOK · ON YOUR MAC';$('.workspace').inert=false;refreshDeployment();refreshBackups()}catch(e){status(e.message);notify(e.message)}}
 // The old prototype controllers are deliberately not loaded: this controller owns every body transaction.
 $('.workspace').inert=true;
@@ -111,7 +164,7 @@ for(const name of ['title','description']){$('#'+name).onfocus=()=>{metadataFocu
 $('#entry-type').onchange=e=>{entry.type=e.target.value;markDirty();$('.folio').textContent=folioLabel(entry);editor.view.dispatch(editor.state.tr.setMeta('folio-number',true));sync()};
 $('#original-date').onchange=e=>{entry.originalDate=e.target.value;markDirty();sync()};
 document.addEventListener('mousedown',e=>{if(e.target.closest('[data-command],#selection-menu'))e.preventDefault()});
-document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.deleteEntry)askTrash(b.dataset.deleteEntry,true);if(b.dataset.trashEntry)askTrash(b.dataset.trashEntry);if(b.dataset.restoreEntry)changeEntry(b.dataset.restoreEntry,'restore');if(b.dataset.newEntry)newEntry(b.dataset.newEntry);if(b.dataset.libraryType){libraryType=b.dataset.libraryType;renderLibrary()}if(b.dataset.command)command(b.dataset.command);if(b.dataset.editNote)openNote(records()[b.dataset.editNote]?.kind,b.dataset.editNote);if(b.dataset.editRevision)openRevision(b.dataset.editRevision);if(b.dataset.deleteNote)removeNote(b.dataset.deleteNote);if(b.dataset.reattach){const id=b.dataset.reattach;transact(tr=>{if(records()[id]?.kind==='footnote')tr.insert(editor.state.selection.to,editor.schema.nodes.footnote.create({id}));else anchor(tr,id)});renderSidebar()}if(b.dataset.disconnect){entry.connected=entry.connected.filter(x=>x!==b.dataset.disconnect);markDirty();sync();renderSidebar()}if(b.dataset.load&&!book.find(x=>x.entryId===b.dataset.load)?.trashedAt){load(book.find(x=>x.entryId===b.dataset.load));sync()}if(b.dataset.close)$('#'+b.dataset.close).close();if(b.dataset.insert){const v=b.dataset.insert;$('#insert-menu').open=false;if(v==='side'||v==='footnote')openNote(v);else if(v==='revision')openRevision();else if(v==='image'){openPhoto()}else if(v==='markdown'){remember();$('#markdown-dialog').showModal()}else command(v)}});
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.deleteEntry)askTrash(b.dataset.deleteEntry,true);if(b.dataset.trashEntry)askTrash(b.dataset.trashEntry);if(b.dataset.restoreEntry)changeEntry(b.dataset.restoreEntry,'restore');if(b.dataset.newEntry)newEntry(b.dataset.newEntry);if(b.dataset.libraryType){currentLibraryView().type=b.dataset.libraryType;renderLibrary()}if(b.dataset.command)command(b.dataset.command);if(b.dataset.editNote)openNote(records()[b.dataset.editNote]?.kind,b.dataset.editNote);if(b.dataset.editRevision)openRevision(b.dataset.editRevision);if(b.dataset.deleteNote)removeNote(b.dataset.deleteNote);if(b.dataset.reattach){const id=b.dataset.reattach;transact(tr=>{if(records()[id]?.kind==='footnote')tr.insert(editor.state.selection.to,editor.schema.nodes.footnote.create({id}));else anchor(tr,id)});renderSidebar()}if(b.dataset.disconnect){entry.connected=entry.connected.filter(x=>x!==b.dataset.disconnect);markDirty();sync();renderSidebar()}if(b.dataset.load&&!book.find(x=>x.entryId===b.dataset.load)?.trashedAt){load(book.find(x=>x.entryId===b.dataset.load));sync()}if(b.dataset.close)$('#'+b.dataset.close).close();if(b.dataset.insert){const v=b.dataset.insert;$('#insert-menu').open=false;if(v==='side'||v==='footnote')openNote(v);else if(v==='revision')openRevision();else if(v==='image'){openPhoto()}else if(v==='markdown'){remember();$('#markdown-dialog').showModal()}else command(v)}});
 $('#note-form').onsubmit=e=>{e.preventDefault();restore();const id=editing||uid(),n={...records()[id],id,kind:mode,text:$('#note-text').value,label:$('#side-label').value,showLabel:$('#show-side-label').checked};transact(tr=>{putRecord(id,n,tr);if(!editing){if(mode==='footnote')tr.insert(editor.state.selection.to,editor.schema.nodes.footnote.create({id}));else anchor(tr,id)}});$('#note-dialog').close();renderSidebar()};$('#cancel-note').onclick=()=>{$('#note-dialog').close();restore();editor.commands.focus()};$('#side-shortcut').onclick=()=>openNote('side');
 $('#revision-mode').onchange=()=>$('#addition-fields').hidden=$('#revision-mode').value!=='addition';
 $('#revision-form').onsubmit=e=>{e.preventDefault();restore();const id=editing||uid(),n={id,kind:'revision',mode:$('#revision-mode').value,date:$('#revision-date').value};transact(tr=>{putRecord(id,n,tr);if(!editing){if(n.mode==='addition'){const node=editor.schema.nodes.paragraph.create({blockId:uid(),annotations:[id]},$('#addition-text').value?editor.schema.text($('#addition-text').value):null);const b=currentBlock();tr.insert(b?b.pos+b.node.nodeSize:editor.state.selection.to,node)}else anchor(tr,id)}});$('#revision-dialog').close();renderSidebar()};
@@ -121,7 +174,10 @@ $('#add-link').onclick=()=>{remember();$('#link-url').value=editor.getAttributes
 $('#link-form').onsubmit=e=>{e.preventDefault();const url=safeURL($('#link-url').value);if(!url){$('#link-error').textContent='Use a complete web or email address.';return}restore();if(editor.state.selection.empty)editor.chain().focus().insertContent({type:'text',text:$('#link-label').value||url,marks:[{type:'link',attrs:{href:url}}]}).run();else editor.chain().focus().setLink({href:url}).run();$('#link-dialog').close()};$('#unlink').onclick=()=>{restore();editor.chain().focus().extendMarkRange('link').unsetLink().run();$('#link-dialog').close()};
 $('#paste-markdown').onclick=()=>{restore();try{editor.chain().focus().insertContent($('#markdown-text').value,{contentType:'markdown'}).run();$('#markdown-dialog').close();$('#markdown-text').value=''}catch(e){notify('Could not import this Markdown. '+e.message)}};
 $('#empty-library').onclick=library;$('#show-trash').onclick=()=>{libraryTrash=!libraryTrash;renderLibrary()};$('#confirm-trash').onclick=()=>changeEntry(deleteEntryId,deleteEntryAction);
-$('#write-tab').onclick=library;$('#show-library').onclick=library;$('#library-search').oninput=renderLibrary;$('#library-state').onchange=renderLibrary;$('#library-sort').onchange=renderLibrary;$('#close-library').onclick=()=>$('#library-dialog').close();$('#clear-library').onclick=()=>{libraryType='all';$('#library-search').value='';$('#library-state').value='all';$('#library-sort').value='edited';renderLibrary();$('#library-search').focus()};
+$('#write-tab').onclick=library;$('#show-library').onclick=library;$('#library-search').oninput = event => { currentLibraryView().query = event.target.value; renderLibrary(); };
+$('#library-state').onchange = event => { currentLibraryView().state = event.target.value; renderLibrary(); };
+$('#library-sort').onchange = event => { currentLibraryView().sort = event.target.value; renderLibrary(); };
+$('#close-library').onclick=()=>$('#library-dialog').close();$('#clear-library').onclick=()=>{Object.assign(currentLibraryView(), {query: '', type: 'all', state: 'all', sort: 'edited'});renderLibrary();$('#library-search').focus()};
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(items=>document.documentElement.style.setProperty('--actionbar-height',items[0].target.getBoundingClientRect().height+'px')).observe($('.actionbar'));
 
 $('#connect-idea').onclick=()=>{$('#idea-search').value='';ideas();$('#ideas-dialog').showModal()};$('#idea-search').oninput=ideas;$('#idea-results').onchange=e=>{const id=e.target.dataset.connect;if(!id)return;entry.connected=[...new Set([...(entry.connected||[]).filter(x=>x!==id),...(e.target.checked?[id]:[])])];markDirty();sync();renderSidebar()};
