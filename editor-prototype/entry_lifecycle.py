@@ -1,4 +1,4 @@
-"""Recoverable deletion without releasing identities, folios or publication history."""
+"""Manage Trash and retain stable entry IDs after permanent deletion."""
 from copy import deepcopy
 from datetime import datetime, timezone
 
@@ -21,7 +21,8 @@ def change_entry_state(book, entry_id, action, active_id=None, confirm_delete=Fa
             raise ValueError('Move an unpublished entry to Trash before deleting it permanently.')
         if confirm_delete is not True:
             raise ValueError('Confirm permanent deletion of this entry first.')
-        # A content-free reservation prevents old links or folios from being reused.
+        # Keep the old ID for links and the historical folio for reference.
+        # Allocation skips permanently deleted records.
         reservation = {key: deepcopy(entry[key]) for key in ('entryId', 'type', 'folioNumbers', 'folioNumber', 'folioType') if key in entry}
         entry.clear()
         entry.update(reservation, schemaVersion=2, title='', description='', trashedAt=True,

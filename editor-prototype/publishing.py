@@ -12,6 +12,8 @@ def valid_number(value):
 def next_folio(book,type):
  numbers=[]
  for entry in book['entries']:
+  if entry.get('deletedAt'):
+   continue
   number=entry.get('folioNumbers',{}).get(type)
   if valid_number(number):numbers.append(number)
   snapshot=entry.get('published') or {}

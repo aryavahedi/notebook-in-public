@@ -12,7 +12,7 @@ Paragraph references include the category and entry number: e.2.3 is the third p
 
 The internal entry ID is independent of the displayed folio. Existing /entry/043 links and connected-entry IDs remain unchanged even when their display label becomes e. 2. Published entries were migrated in first-publication order without altering their text, connections, publication events or version counts. Draft content was preserved.
 
-If an entry changes category, its next publication receives a number from the new category; its earlier allocation remains reserved. Changing back reuses that entry's earlier category number. Numbers are never recycled merely because a page is unpublished.
+If an entry changes category, its next publication receives a number from the new category; its earlier allocation remains reserved. Changing back reuses that entry's earlier category number. Unpublishing and moving an entry to Trash retain its number. Permanent deletion releases the number for allocation at the end of that category’s sequence. The next publication receives one higher than the highest number still held by an entry, including entries in Trash. Later entries keep their assigned numbers when an older entry is deleted. The deleted entry’s URL remains tied to its original ID.
 
 The server stores per-entry folioNumbers reservations and puts folioNumber in the published snapshot. UI helpers in editor-src/folio.js render the same labels in the editor, index, article, sketch preview and related links. Server-side allocation occurs inside the publication transaction, so two windows cannot assign the same number concurrently.
 

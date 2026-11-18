@@ -43,7 +43,7 @@ class EntryLifecycleTest(unittest.TestCase):
         book['entries'][0]['trashedAt'] = '2026-11-17'
         self.assertEqual(catalogue(book)['entries'], [])
 
-    def test_permanent_delete_removes_content_and_connections_but_reserves_numbers(self):
+    def test_permanent_delete_removes_content_and_connections_and_releases_latest_folio(self):
         book, _, _ = publish_entry({'entries': [entry('1'), entry('2')]}, '1')
         book, _, _ = publish_entry(book, '1', 'unpublish')
         book['entries'][1]['connected'] = ['1']
@@ -57,10 +57,32 @@ class EntryLifecycleTest(unittest.TestCase):
         self.assertEqual(deleted['entries'][1]['connected'], [])
         self.assertEqual(deleted['activeId'], '2')
         _, next_entry, _ = publish_entry(deleted, '2')
-        self.assertEqual(next_entry['folioNumber'], 2)
+        self.assertEqual(next_entry['folioNumber'], 1)
+        self.assertNotEqual(next_entry['entryId'], record['entryId'])
         with self.assertRaisesRegex(ValueError, 'already'):
             change_entry_state(deleted, '1', 'restore')
         self.assertEqual(trashed['entries'][0]['title'], 'A public thought')
+
+    def test_only_the_end_of_each_sequence_is_reusable(self):
+        entries = [dict(entry(str(i)), type='Note') for i in range(1, 7)]
+        entries[-1]['type'] = 'Sketch'
+        book = {'entries': entries}
+        for key in ('1', '2', '3', '6'):
+            book, _, _ = publish_entry(book, key)
+        for key in ('2', '3'):
+            book, _, _ = publish_entry(book, key, 'unpublish')
+            book = change_entry_state(book, key, 'trash')
+        book = change_entry_state(book, '2', 'delete', confirm_delete=True)
+
+        # Deleting an older note leaves a gap, and a trashed note still holds 3.
+        _, next_note, _ = publish_entry(book, '4')
+        self.assertEqual(next_note['folioNumber'], 4)
+
+        book = change_entry_state(book, '3', 'delete', confirm_delete=True)
+        book, replacement, _ = publish_entry(book, '5')
+        self.assertEqual(replacement['folioNumber'], 2)
+        self.assertEqual({e['entryId']: e['folioNumber'] for e in catalogue(book)['entries']},
+                         {'1': 1, '5': 2, '6': 1})
 
     def test_permanent_delete_requires_trash_and_explicit_confirmation(self):
         book = {'entries': [entry()]}
