@@ -136,3 +136,12 @@ body { --companion-width: clamp(405px, 38vw, 650px); }
   .companion-split #main .inline-note summary { cursor: pointer; color: var(--blue); }
   .companion-split #main .essay-bottom { margin-left: 82px; max-width: none; }
 }
+
+.workshop-project .folio-image img { border-radius: 4px; }
+.workshop-project .folio-image figcaption:empty { display: none; }
+.project-photo-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.project-photo-group:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.project-photo-group .folio-image img { width: 100%; height: auto; }
+@media (max-width: 670px) {
+ .project-photo-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

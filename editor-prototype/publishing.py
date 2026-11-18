@@ -1,7 +1,7 @@
 """Published-only projection shared by local website serving and static export."""
 from copy import deepcopy
 from datetime import datetime, timezone
-import json, hashlib
+import json, hashlib, re
 
 def now():
  return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -39,8 +39,13 @@ def migrate_folios(book):
 def public_snapshot(entry):
  if entry.get('schemaVersion')!=2 or not isinstance(entry.get('body'),dict):raise ValueError('Open and save this entry in the current editor first.')
  if not entry.get('title','').strip():raise ValueError('Add a title before publishing.')
- if entry.get('type') not in ('Essay','Note','Sketch'):raise ValueError('Choose Essay, Note, or Sketch.')
+ if entry.get('type') not in ('Essay','Note','Sketch','Project'):raise ValueError('Choose Essay, Note, Sketch, or Project.')
  result={k:deepcopy(entry.get(k)) for k in ('schemaVersion','entryId','title','description','type','originalDate','body','connected')}
+ if entry['type']=='Project' and 'projectSlug' in entry:
+  slug=entry['projectSlug']
+  if not isinstance(slug,str) or len(slug)>100 or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',slug):
+   raise ValueError('Invalid Workshop project address.')
+  result['projectSlug']=slug
  result['description']=result['description'] or '';result['connected']=result['connected'] or []
  attached=set()
  def walk(node):
@@ -70,6 +75,11 @@ def publish_entry(book,entry_id,action='publish',at=None):
   entry['publication']={**previous,'status':'unpublished','events':events};entry['dirty']=True
  elif action=='publish':
   snapshot=public_snapshot(entry)
+  slug=snapshot.get('projectSlug')
+  if slug and any(other['entryId']!=entry_id and not other.get('deletedAt') and
+                  (other.get('projectSlug')==slug or (other.get('published') or {}).get('projectSlug')==slug)
+                  for other in book['entries']):
+   raise ValueError('Another project already uses this Workshop address.')
   assignments=entry.setdefault('folioNumbers',{});number=assignments.get(entry['type'])
   if not valid_number(number):number=next_folio(book,entry['type']);assignments[entry['type']]=number
   entry['folioNumber']=number;entry['folioType']=entry['type'];snapshot['folioNumber']=number

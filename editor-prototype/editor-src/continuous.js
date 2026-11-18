@@ -5,7 +5,7 @@ import {publicationStatus,deploying} from './publication-status.js';
 import {Editor,generateJSON,getSchema} from '@tiptap/core';
 import {closeHistory} from '@tiptap/pm/history';
 import {extensions,migrate,uid,esc,safeURL,render,numbering} from './document.js';
-const $=s=>document.querySelector(s),today=()=>new Date().toLocaleDateString('en-CA'),clone=x=>structuredClone(x),prefix=t=>({Essay:'e.',Note:'n.',Sketch:'s.'})[t]||'e.';
+const $=s=>document.querySelector(s),today=()=>new Date().toLocaleDateString('en-CA'),clone=x=>structuredClone(x);
 const parse=html=>generateJSON(html,extensions());
 let book=[],entry,editor,revision=0,pending=false,busy=false,timer,ready=false,selection=null,editing=null,mode='side',metadataFocused=false,changeCounter=0,figurePosition=null,publicationAction='publish';
 let connection=null,deploymentTimer,backupTimer,submittingPublication=false;
@@ -18,6 +18,18 @@ const currentLibraryView = () => libraryViews[libraryTrash ? 'trash' : 'library'
 const previewStorageKey = 'folio-draft-preview';
 
 const availableEntries=()=>book.filter(e=>!e.trashedAt);
+function updateLibraryCounts(){
+ const available=availableEntries();
+ $('#write-tab').textContent=`Your writing · ${available.length}`;
+ $('#workshop-count').textContent=available.filter(e=>e.type==='Project').length;
+}
+function updateDateField(){
+ const field=$('#original-date'),project=entry.type==='Project',date=entry.originalDate||today();
+ field.type=project?'month':'date';
+ field.placeholder=project?'YYYY-MM':'';
+ field.value=project?date.slice(0,7):date.length===7?date+'-01':date;
+ $('#project-cover-hint').hidden=!project;
+}
 const status=t=>$('#save-status').textContent=t;
 const notify=t=>{ $('#toast').textContent=t;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),4000)};
 const records=()=>editor?.state.doc.attrs.annotations||{};
@@ -50,10 +62,10 @@ function sync(){if(!ready)return;pending=true;changeCounter++;status('Saving…'
 function capture(){if(editor&&entry)entry.body=editor.getJSON();return entry}
 async function flush(){if(busy||!pending||!ready)return;capture();pending=false;busy=true;const snapshot=JSON.stringify({revision,notebook:{entries:book,activeId:entry?.entryId||null}});try{const r=await fetch('/api/notebook',{method:'PUT',headers:{'Content-Type':'application/json'},body:snapshot});const result=await r.json();if(!r.ok)throw Error(result.error||'Save failed');revision=result.revision;status(pending?'Saving…':'Saved to your Mac')}catch(e){pending=true;status('Not saved — back up or retry');notify(e.message)}finally{busy=false;if(pending&&$('#save-status').textContent==='Saving…')timer=setTimeout(flush,650)}}
 function controls(){for(const b of document.querySelectorAll('[data-command]')){const c=b.dataset.command;b.setAttribute('aria-pressed',String(editor.isActive(c)));} }
-function load(e){capture();clearTimeout(sidebarTimer);if(editor)editor.destroy();editor=null;entry=e;$('.workspace').classList.toggle('empty-notebook',!e);$('#editor').hidden=!e;$('#empty-notebook').hidden=!!e;$('#preview').disabled=!e;$('#export').disabled=!e;$('#selection-menu').hidden=true;$('#write-tab').textContent=`Your writing · ${availableEntries().length}`;if(!e){$('#body-editor').innerHTML='';$('.folio').textContent='';renderPublication();return}$('#title').value=e.title||'';$('#description').value=e.description||'';$('#entry-type').value=e.type||'Note';$('#body-editor').innerHTML='';editor=new Editor({element:$('#body-editor'),extensions:extensions(()=>paragraphPrefix(entry)),content:e.body,editorProps:{attributes:{role:'textbox','aria-label':'Writing body','aria-multiline':'true',spellcheck:'true'},handleClick(view,pos,event){const figure=event.target.closest('figure[data-image]');if(figure){let found;view.state.doc.descendants((n,p)=>{if(n.type.name==='figure'&&n.attrs.blockId===figure.dataset.blockId)found={n,p}});if(found){openPhoto(found);return true}}const id=event.target.closest('[data-annotation]')?.dataset.annotation||event.target.closest('[data-footnote]')?.dataset.footnote;if(id){if(records()[id]?.kind==='revision')openRevision(id);else openNote(records()[id]?.kind,id);return true}return false}},onUpdate(){markDirty();sync();scheduleSidebar()},onSelectionUpdate(){controls();selectionMenu()},onFocus(){metadataFocused=false;controls()}});let needsIDs=false;editor.state.doc.descendants(n=>{if('blockId'in n.attrs&&!n.attrs.blockId)needsIDs=true});if(needsIDs)editor.view.dispatch(editor.state.tr.setNodeMarkup(0,undefined,{...editor.state.doc.firstChild.attrs}));$('#library-dialog').close();$('.folio').textContent=folioLabel(e);$('#write-tab').textContent=`Your writing · ${availableEntries().length}`;$('.rail-bottom p').textContent='Your writing, taking shape.';$('.status').textContent=e.dirty?'UNPUBLISHED CHANGES':e.publication?.status==='published'?'PUBLISHED':'DRAFT';$('#publish').textContent=e.publication?.status==='published'?'Update website ↗':'Publish ↗';renderSidebar();controls();for(const name of ['title','description']){const area=$('#'+name);area.style.height='auto';area.style.height=area.scrollHeight+'px'}$('#title').focus();renderPublication();}
+function load(e){capture();clearTimeout(sidebarTimer);if(editor)editor.destroy();editor=null;entry=e;$('.workspace').classList.toggle('empty-notebook',!e);$('#editor').hidden=!e;$('#empty-notebook').hidden=!!e;$('#preview').disabled=!e;$('#export').disabled=!e;$('#selection-menu').hidden=true;updateLibraryCounts();if(!e){$('#body-editor').innerHTML='';$('.folio').textContent='';renderPublication();return}$('#title').value=e.title||'';$('#description').value=e.description||'';$('#entry-type').value=e.type||'Note';$('#body-editor').innerHTML='';editor=new Editor({element:$('#body-editor'),extensions:extensions(()=>paragraphPrefix(entry)),content:e.body,editorProps:{attributes:{role:'textbox','aria-label':'Writing body','aria-multiline':'true',spellcheck:'true'},handleClick(view,pos,event){const figure=event.target.closest('figure[data-image]');if(figure){let found;view.state.doc.descendants((n,p)=>{if(n.type.name==='figure'&&n.attrs.blockId===figure.dataset.blockId)found={n,p}});if(found){openPhoto(found);return true}}const id=event.target.closest('[data-annotation]')?.dataset.annotation||event.target.closest('[data-footnote]')?.dataset.footnote;if(id){if(records()[id]?.kind==='revision')openRevision(id);else openNote(records()[id]?.kind,id);return true}return false}},onUpdate(){markDirty();sync();scheduleSidebar()},onSelectionUpdate(){controls();selectionMenu()},onFocus(){metadataFocused=false;controls()}});let needsIDs=false;editor.state.doc.descendants(n=>{if('blockId'in n.attrs&&!n.attrs.blockId)needsIDs=true});if(needsIDs)editor.view.dispatch(editor.state.tr.setNodeMarkup(0,undefined,{...editor.state.doc.firstChild.attrs}));$('#library-dialog').close();$('.folio').textContent=folioLabel(e);$('.rail-bottom p').textContent='Your writing, taking shape.';$('.status').textContent=e.dirty?'UNPUBLISHED CHANGES':e.publication?.status==='published'?'PUBLISHED':'DRAFT';$('#publish').textContent=e.publication?.status==='published'?'Update website ↗':'Publish ↗';renderSidebar();controls();for(const name of ['title','description']){const area=$('#'+name);area.style.height='auto';area.style.height=area.scrollHeight+'px'}$('#title').focus();renderPublication();}
 let sidebarTimer;function scheduleSidebar(){clearTimeout(sidebarTimer);sidebarTimer=setTimeout(renderSidebar,250)}
 function attachments(){const set=new Set();editor.state.doc.descendants(n=>{for(const id of n.attrs.annotations||[])set.add(id);for(const m of n.marks)if(m.type.name==='annotation')set.add(m.attrs.id);if(n.type.name==='footnote')set.add(n.attrs.id)});return set}
-function renderSidebar(){if(!entry)return;const all=records(),attached=attachments();$('#annotations').innerHTML=Object.values(all).filter(n=>n.kind!=='revision'&&attached.has(n.id)).map(n=>`<div class="annotation"><small>${n.kind==='footnote'?'FOOTNOTE':'SIDE NOTE'}</small>${n.kind==='footnote'||n.showLabel===false?'':`<strong class="note-custom-heading">${esc(n.label||'')}</strong>`}<p>${esc(n.text)}</p><button data-edit-note="${esc(n.id)}">Edit</button><button data-delete-note="${esc(n.id)}">Remove</button></div>`).join('');const detached=Object.values(all).filter(n=>!attached.has(n.id));$('#unattached').innerHTML=detached.length?`<h2>Unattached notes</h2><p class="hint">Their original passage was removed. Select a new passage to reattach.</p>`+detached.map(n=>`<p>${esc(n.text||'Dated revision')}</p><button data-reattach="${n.id}">Reattach</button><button data-delete-note="${n.id}">Delete</button>`).join(''):'';$('#revision-list').innerHTML=Object.values(all).filter(n=>n.kind==='revision').map(n=>`<div class="revision-item"><button data-edit-revision="${n.id}">${n.mode==='addition'?'Added':'Revised'} ${esc(n.date)}</button><button data-delete-note="${n.id}">Remove</button></div>`).join('')||'<p class="hint">No dated passages yet.</p>';$('#connected-list').innerHTML=(entry.connected||[]).map(id=>book.find(x=>x.entryId===id&&!x.trashedAt)).filter(Boolean).map(e=>`<div class="connected-item"><small>${esc(folioLabel(e))}</small><p>${esc(e.title||'Untitled')}</p><button data-disconnect="${e.entryId}">Remove</button></div>`).join('')||'<p class="hint">No connected ideas yet.</p>';$('#original-date').value=entry.originalDate||today();$('#unpublish').hidden=entry.publication?.status!=='published';$('#publication-status').textContent=entry.publication?.status==='published'?`Published · version ${entry.publication.version}`:entry.publication?.status==='unpublished'?'Withdrawn from the website':'Not published';$('#publication-events').innerHTML=(entry.publication?.events||[]).slice().reverse().map(e=>`<p class="hint">${esc(e.kind)} · ${esc(new Date(e.at).toLocaleDateString())} · v${e.version}</p>`).join('');renderPublication()}
+function renderSidebar(){if(!entry)return;const all=records(),attached=attachments();$('#annotations').innerHTML=Object.values(all).filter(n=>n.kind!=='revision'&&attached.has(n.id)).map(n=>`<div class="annotation"><small>${n.kind==='footnote'?'FOOTNOTE':'SIDE NOTE'}</small>${n.kind==='footnote'||n.showLabel===false?'':`<strong class="note-custom-heading">${esc(n.label||'')}</strong>`}<p>${esc(n.text)}</p><button data-edit-note="${esc(n.id)}">Edit</button><button data-delete-note="${esc(n.id)}">Remove</button></div>`).join('');const detached=Object.values(all).filter(n=>!attached.has(n.id));$('#unattached').innerHTML=detached.length?`<h2>Unattached notes</h2><p class="hint">Their original passage was removed. Select a new passage to reattach.</p>`+detached.map(n=>`<p>${esc(n.text||'Dated revision')}</p><button data-reattach="${n.id}">Reattach</button><button data-delete-note="${n.id}">Delete</button>`).join(''):'';$('#revision-list').innerHTML=Object.values(all).filter(n=>n.kind==='revision').map(n=>`<div class="revision-item"><button data-edit-revision="${n.id}">${n.mode==='addition'?'Added':'Revised'} ${esc(n.date)}</button><button data-delete-note="${n.id}">Remove</button></div>`).join('')||'<p class="hint">No dated passages yet.</p>';$('#connected-list').innerHTML=(entry.connected||[]).map(id=>book.find(x=>x.entryId===id&&!x.trashedAt)).filter(Boolean).map(e=>`<div class="connected-item"><small>${esc(folioLabel(e))}</small><p>${esc(e.title||'Untitled')}</p><button data-disconnect="${e.entryId}">Remove</button></div>`).join('')||'<p class="hint">No connected ideas yet.</p>';updateDateField();$('#unpublish').hidden=entry.publication?.status!=='published';$('#publication-status').textContent=entry.publication?.status==='published'?`Published · version ${entry.publication.version}`:entry.publication?.status==='unpublished'?'Withdrawn from the website':'Not published';$('#publication-events').innerHTML=(entry.publication?.events||[]).slice().reverse().map(e=>`<p class="hint">${esc(e.kind)} · ${esc(new Date(e.at).toLocaleDateString())} · v${e.version}</p>`).join('');renderPublication()}
 function remember(){selection=editor.state.selection.toJSON();$('#selection-menu').hidden=true}
 function restore(){if(selection)editor.commands.setTextSelection({from:selection.anchor,to:selection.head})}
 function openNote(kind='side',id=null){remember();mode=kind;editing=id;const n=records()[id];$('#note-kind').textContent=kind==='footnote'?'FOOTNOTE':'SIDE NOTE';$('#note-title').textContent=id?'Edit your note.':'Leave a thought beside the writing.';$('#note-text').value=n?.text||'';$('#side-label').value=n?.label??'In the margin';$('#show-side-label').checked=n?.showLabel!==false;$('#side-label-fields').hidden=kind==='footnote';$('#note-context').textContent=editor.state.selection.empty?'Attached to this paragraph.':'Attached to your selected passage.';$('#note-dialog').showModal();$('#note-text').focus()}
@@ -76,7 +88,7 @@ function renderLibrary(){
  for(const button of document.querySelectorAll('[data-library-type]'))button.setAttribute('aria-pressed',String(button.dataset.libraryType===type));
  $('#library-count').textContent=items.length+' of '+group.length+(libraryTrash?' entries in Trash':' entries');
  $('#library-items').innerHTML=items.map(e=>{
-  const title=e.title||'Untitled '+e.type.toLowerCase(),date=editedDate(e),state=entryState(e,connection),src=e.type==='Sketch'?firstImage(e.body):'';
+  const title=e.title||'Untitled '+e.type.toLowerCase(),date=editedDate(e),state=entryState(e,connection),src=['Sketch','Project'].includes(e.type)?firstImage(e.body):'';
   let excerpt=e.description||documentText(e.body);if(query&&!((e.title+' '+e.description).toLowerCase().includes(query.toLowerCase()))){const body=documentText(e.body),at=body.toLowerCase().indexOf(query.toLowerCase());if(at>=0)excerpt=(at>40?'…':'')+body.slice(Math.max(0,at-40),at+130)}
   const blocked=e.publication?.status==='published',action=e.trashedAt?`<div class="library-entry-actions"><button class="library-entry-action" data-restore-entry="${e.entryId}" aria-label="Restore ${esc(title)}">Restore</button><button class="library-entry-action danger-text" data-delete-entry="${e.entryId}" aria-label="Delete ${esc(title)} permanently">Delete permanently</button></div>`:`<button class="library-entry-action danger-text" data-trash-entry="${e.entryId}" aria-label="Move ${esc(title)} to Trash" ${blocked?'disabled title="Unpublish this page first"':''}>${blocked?'Unpublish first':'Move to Trash'}</button>`;
   return `<div class="library-item"><button class="library-row" data-load="${e.entryId}" ${e.trashedAt?'disabled':''} ${e===entry?'aria-current="page"':''}><span class="library-folio"><small>${esc(folioLabel(e))}</small><span>${esc(e.type)}</span></span><span class="library-copy"><strong>${esc(title)}</strong><span>${esc(excerpt.slice(0,170))}</span></span>${src?`<img class="library-thumbnail" src="${esc(src)}" alt="" loading="lazy">`:''}<span class="library-metadata"><span class="library-state">${esc(state)}</span>${date?`<time datetime="${esc(date)}">${esc(new Date(date.length===10?date+'T12:00:00':date).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}))}</time>`:''}</span></button>${action}</div>`
@@ -96,12 +108,12 @@ async function changeEntry(id,action){
   const result=await response.json();if(!response.ok)throw Error(result.error||'Could not update this entry.');
   revision=result.revision;book=result.notebook.entries;
   if(active&&active===result.notebook.activeId){entry=book.find(e=>e.entryId===active);renderSidebar()}else{entry=undefined;load(book.find(e=>e.entryId===result.notebook.activeId))}
-  $('#write-tab').textContent=`Your writing · ${availableEntries().length}`;$('#delete-entry-dialog').close();renderLibrary();if(!$('#library-dialog').open)$('#library-dialog').showModal();$('#show-trash').focus();status('Saved to your Mac');notify(action==='trash'?'Moved to Trash. You can restore it from the Library.':action==='delete'?'Deleted from this notebook. Earlier backups and GitHub history are unchanged.':'Restored to your Library. It has not been republished.');
+  updateLibraryCounts();$('#delete-entry-dialog').close();renderLibrary();if(!$('#library-dialog').open)$('#library-dialog').showModal();$('#show-trash').focus();status('Saved to your Mac');notify(action==='trash'?'Moved to Trash. You can restore it from the Library.':action==='delete'?'Deleted from this notebook. Earlier backups and GitHub history are unchanged.':'Restored to your Library. It has not been republished.');
  }catch(error){if(action!=='restore')$('#delete-entry-error').textContent=error.message;else notify(error.message)}
  finally{changingEntry=false;$('.workspace').inert=false;$('#library-dialog').inert=false;$('#confirm-trash').disabled=false}
 }
 function newEntry(type){
- libraryTrash=false;const now=new Date().toISOString();const e=migrate({entryId:String(Math.max(41,...book.map(x=>Number(x.entryId)||0))+1).padStart(3,'0'),title:'',description:'',type,createdAt:now,editedAt:now,originalDate:today(),paragraphs:[],notes:[],connected:[],published:null},parse);
+ libraryTrash=false;const now=new Date().toISOString();const e=migrate({entryId:String(Math.max(41,...book.map(x=>Number(x.entryId)||0))+1).padStart(3,'0'),title:'',description:'',type,createdAt:now,editedAt:now,originalDate:type==='Project'?today().slice(0,7):today(),paragraphs:[],notes:[],connected:[],published:null},parse);
  book.unshift(e);for(const menu of document.querySelectorAll('.new-entry-menu'))menu.open=false;load(e);sync();window.scrollTo({top:0});if(type==='Sketch')openPhoto();
 }
 function openPhoto(figure=null){
@@ -120,28 +132,25 @@ function preview(published = false) {
  const entryRoute = '#/entry/' + encodeURIComponent(entry.entryId);
  if (published) {
   frame.src = '/published/' + entryRoute;
-  sessionStorage.removeItem(previewStorageKey);
+  delete window.folioDraftPreview;
   $('#preview-source').textContent = 'Published website · on this Mac';
  } else {
   const entries = book.filter(other => !other.trashedAt && other.published &&
     other.publication?.status === 'published' && other.entryId !== entry.entryId)
     .map(other => other.published);
-  try {
-   // Remove saved previews left by earlier versions of the Writing Room.
-   for (let i = sessionStorage.length - 1; i >= 0; i--) {
-    const key = sessionStorage.key(i);
-    if (/^folio-preview-[a-f0-9]{32}$/.test(key)) sessionStorage.removeItem(key);
-   }
-   sessionStorage.setItem(previewStorageKey, JSON.stringify({entries, entry: {
-    schemaVersion: entry.schemaVersion, entryId: entry.entryId, type: entry.type,
-    title: entry.title, description: entry.description, originalDate: entry.originalDate,
-    body: entry.body, connected: entry.connected, publication: entry.publication,
-    folioNumber: entry.folioNumber, folioType: entry.folioType, folioNumbers: entry.folioNumbers,
-   }}));
-  } catch {
-   notify('This preview exceeds the browser’s storage limit. Try a smaller image.');
-   return;
+  // Photo-heavy projects may exceed browser storage quotas. The same-origin reader
+  // uses this in-memory snapshot until the preview closes.
+  for (let i=sessionStorage.length-1;i>=0;i--){
+   const key=sessionStorage.key(i);
+   if (key===previewStorageKey||/^folio-preview-[a-f0-9]{32}$/.test(key))sessionStorage.removeItem(key);
   }
+  window.folioDraftPreview={entries,entry:{
+   schemaVersion:entry.schemaVersion,entryId:entry.entryId,type:entry.type,
+   title:entry.title,description:entry.description,originalDate:entry.originalDate,
+   body:entry.body,connected:entry.connected,publication:entry.publication,
+   folioNumber:entry.folioNumber,folioType:entry.folioType,folioNumbers:entry.folioNumbers,
+   projectSlug:entry.projectSlug,
+  }};
   frame.src = 'site/?continuous=1&preview=' + previewStorageKey + '&v=' + Date.now() + entryRoute;
   $('#preview-source').textContent = 'Draft · website preview';
  }
@@ -153,7 +162,7 @@ function preview(published = false) {
 function closePreview() {
  $('#website-preview').hidden = true;
  $('#website-frame').removeAttribute('src');
- sessionStorage.removeItem(previewStorageKey);
+ delete window.folioDraftPreview;
  $('.workspace').inert = false;
  editor.commands.focus();
 }
@@ -161,8 +170,12 @@ async function start(){try{const r=await fetch('/api/notebook');if(!r.ok)throw E
 // The old prototype controllers are deliberately not loaded: this controller owns every body transaction.
 $('.workspace').inert=true;
 for(const name of ['title','description']){$('#'+name).onfocus=()=>{metadataFocused=true;$('#selection-menu').hidden=true};$('#'+name).oninput=e=>{entry[name]=e.target.value;markDirty();e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px';sync()}}
-$('#entry-type').onchange=e=>{entry.type=e.target.value;markDirty();$('.folio').textContent=folioLabel(entry);editor.view.dispatch(editor.state.tr.setMeta('folio-number',true));sync()};
-$('#original-date').onchange=e=>{entry.originalDate=e.target.value;markDirty();sync()};
+$('#entry-type').onchange=e=>{entry.type=e.target.value;if(entry.type!=='Project'&&entry.originalDate?.length===7)entry.originalDate+='-01';updateDateField();updateLibraryCounts();markDirty();$('.folio').textContent=folioLabel(entry);editor.view.dispatch(editor.state.tr.setMeta('folio-number',true));sync()};
+$('#original-date').onchange=e=>{
+ const value=e.target.value;
+ if(entry.type==='Project'&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)){updateDateField();return}
+ entry.originalDate=value;markDirty();sync();
+};
 document.addEventListener('mousedown',e=>{if(e.target.closest('[data-command],#selection-menu'))e.preventDefault()});
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.deleteEntry)askTrash(b.dataset.deleteEntry,true);if(b.dataset.trashEntry)askTrash(b.dataset.trashEntry);if(b.dataset.restoreEntry)changeEntry(b.dataset.restoreEntry,'restore');if(b.dataset.newEntry)newEntry(b.dataset.newEntry);if(b.dataset.libraryType){currentLibraryView().type=b.dataset.libraryType;renderLibrary()}if(b.dataset.command)command(b.dataset.command);if(b.dataset.editNote)openNote(records()[b.dataset.editNote]?.kind,b.dataset.editNote);if(b.dataset.editRevision)openRevision(b.dataset.editRevision);if(b.dataset.deleteNote)removeNote(b.dataset.deleteNote);if(b.dataset.reattach){const id=b.dataset.reattach;transact(tr=>{if(records()[id]?.kind==='footnote')tr.insert(editor.state.selection.to,editor.schema.nodes.footnote.create({id}));else anchor(tr,id)});renderSidebar()}if(b.dataset.disconnect){entry.connected=entry.connected.filter(x=>x!==b.dataset.disconnect);markDirty();sync();renderSidebar()}if(b.dataset.load&&!book.find(x=>x.entryId===b.dataset.load)?.trashedAt){load(book.find(x=>x.entryId===b.dataset.load));sync()}if(b.dataset.close)$('#'+b.dataset.close).close();if(b.dataset.insert){const v=b.dataset.insert;$('#insert-menu').open=false;if(v==='side'||v==='footnote')openNote(v);else if(v==='revision')openRevision();else if(v==='image'){openPhoto()}else if(v==='markdown'){remember();$('#markdown-dialog').showModal()}else command(v)}});
 $('#note-form').onsubmit=e=>{e.preventDefault();restore();const id=editing||uid(),n={...records()[id],id,kind:mode,text:$('#note-text').value,label:$('#side-label').value,showLabel:$('#show-side-label').checked};transact(tr=>{putRecord(id,n,tr);if(!editing){if(mode==='footnote')tr.insert(editor.state.selection.to,editor.schema.nodes.footnote.create({id}));else anchor(tr,id)}});$('#note-dialog').close();renderSidebar()};$('#cancel-note').onclick=()=>{$('#note-dialog').close();restore();editor.commands.focus()};$('#side-shortcut').onclick=()=>openNote('side');
@@ -174,7 +187,12 @@ $('#add-link').onclick=()=>{remember();$('#link-url').value=editor.getAttributes
 $('#link-form').onsubmit=e=>{e.preventDefault();const url=safeURL($('#link-url').value);if(!url){$('#link-error').textContent='Use a complete web or email address.';return}restore();if(editor.state.selection.empty)editor.chain().focus().insertContent({type:'text',text:$('#link-label').value||url,marks:[{type:'link',attrs:{href:url}}]}).run();else editor.chain().focus().setLink({href:url}).run();$('#link-dialog').close()};$('#unlink').onclick=()=>{restore();editor.chain().focus().extendMarkRange('link').unsetLink().run();$('#link-dialog').close()};
 $('#paste-markdown').onclick=()=>{restore();try{editor.chain().focus().insertContent($('#markdown-text').value,{contentType:'markdown'}).run();$('#markdown-dialog').close();$('#markdown-text').value=''}catch(e){notify('Could not import this Markdown. '+e.message)}};
 $('#empty-library').onclick=library;$('#show-trash').onclick=()=>{libraryTrash=!libraryTrash;renderLibrary()};$('#confirm-trash').onclick=()=>changeEntry(deleteEntryId,deleteEntryAction);
-$('#write-tab').onclick=library;$('#show-library').onclick=library;$('#library-search').oninput = event => { currentLibraryView().query = event.target.value; renderLibrary(); };
+$('#write-tab').onclick=library;$('#show-library').onclick=library;
+$('#show-workshop').onclick=()=>{
+ libraryTrash=false;
+ Object.assign(currentLibraryView(),{query:'',type:'Project',state:'all'});
+ library();
+};$('#library-search').oninput = event => { currentLibraryView().query = event.target.value; renderLibrary(); };
 $('#library-state').onchange = event => { currentLibraryView().state = event.target.value; renderLibrary(); };
 $('#library-sort').onchange = event => { currentLibraryView().sort = event.target.value; renderLibrary(); };
 $('#close-library').onclick=()=>$('#library-dialog').close();$('#clear-library').onclick=()=>{Object.assign(currentLibraryView(), {query: '', type: 'all', state: 'all', sort: 'edited'});renderLibrary();$('#library-search').focus()};

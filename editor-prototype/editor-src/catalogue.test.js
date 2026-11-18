@@ -3,11 +3,34 @@ const html=(await readFile(new URL('../site/index.html',import.meta.url),'utf8')
 const dom=new JSDOM(html,{url:'http://localhost/published/#/',runScripts:'outside-only',pretendToBeVisual:true});const w=dom.window;
 for(const k of ['window','document','Node','HTMLElement','MutationObserver','DOMParser','getComputedStyle'])globalThis[k]=k==='window'?w:w[k];Object.defineProperty(globalThis,'navigator',{value:w.navigator,configurable:true});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false});
 w.eval(await readFile(new URL('../../living-folio/dist/app.js',import.meta.url),'utf8'));
-const {makeArticle,catalogueRow,homepageSketch}=await import('./reader.js');
+const {makeArticle,catalogueRow,homepageSketch,workshopCards}=await import('./reader.js');
 const e=(id,title)=>({schemaVersion:2,entryId:id,folioNumber:Number(id),title,type:'Essay',description:'Description',originalDate:'2026-11-06',connected:[],body:{type:'doc',attrs:{annotations:{}},content:[{type:'paragraph',attrs:{blockId:'p'+id,annotations:[]},content:[{type:'text',text:'Words'}]}]},publication:{version:1,updatedAt:'2026-11-06T12:00:00Z',events:[{kind:'publish',at:'2026-11-06T12:00:00Z',version:1}]}});
 test('published catalogue replaces sample homepage/index and uses stable routes with escaped titles',()=>{const items=[e('050','<img src=x onerror=alert(1)>'),e('049','Second essay')];w.FolioSite.installCatalogue(items,(entry,show)=>makeArticle(entry,items)(show),catalogueRow);assert.equal(document.querySelectorAll('.writing-row').length,2);assert.equal(document.querySelector('.entry-copy h3').textContent,'<img src=x onerror=alert(1)>↗');assert.equal(document.querySelector('.entry-copy a').getAttribute('href'),'#/entry/050');assert.equal(document.querySelector('.entry-copy img'),null);w.location.hash='/writing';w.eval('currentRoute="";render()');assert.equal(document.querySelectorAll('.writing-row').length,2);assert.match(document.querySelector('#index-count').textContent,/2 of 2/)});
 test('an entry route renders the real shared article, and unavailable routes do not reveal samples',()=>{w.location.hash='/entry/049';w.eval('currentRoute="";render()');assert.equal(document.querySelector('.essay-title').textContent,'Second essay');assert.equal(document.querySelector('.paragraph-no').textContent,'e.49.1');assert.match(document.querySelector('.essay-bottom').textContent,/First published/);w.location.hash='/entry/999';w.eval('currentRoute="";render()');assert.equal(document.querySelector('h1').textContent,'Page not found.')});
 test('empty published catalogue has a useful empty state',()=>{w.location.hash='/';w.FolioSite.installCatalogue([],()=>'',catalogueRow);assert.equal(document.querySelectorAll('.writing-row').length,0);assert.match(document.querySelector('.empty-state').textContent,/published/)});
+
+test('projects are listed in Workshop, preserve the old address, and disappear when withdrawn',()=>{
+ const project={...e('055','Restoration'),type:'Project',folioNumber:1,originalDate:'2024-02',projectSlug:'tobacco-pipe-restoration'};
+ for(let i=0;i<2;i++)project.body.content.push({type:'figure',attrs:{
+  blockId:'photo'+i,src:'data:image/webp;base64,aA==',alt:'Photo '+i,caption:'',annotations:[],
+ }});
+ const all=[e('054','Essay'),project];
+ const install=items=>w.FolioSite.installCatalogue(items,(entry,show)=>makeArticle(entry,items)(show),catalogueRow,homepageSketch,workshopCards);
+ w.location.hash='/writing';install(all);
+ assert.equal(document.querySelectorAll('.writing-row').length,1);
+ assert.doesNotMatch(document.querySelector('#index-results').textContent,/Restoration/);
+ w.location.hash='/projects';install(all);
+ assert.equal(document.querySelector('.project-item h3').textContent,'Restoration');
+ assert.equal(document.querySelector('.project-art img').alt,'Photo 0');
+ assert.equal(document.querySelector('.project-item time').textContent,'February 2024');
+ w.location.hash='/project/tobacco-pipe-restoration';install(all);
+ assert.equal(document.querySelector('.essay-title').textContent,'Restoration');
+ assert.equal(document.querySelector('.essay-meta .folio').textContent,'p. 1');
+ assert.equal(document.querySelectorAll('.project-photo-group figure').length,2);
+ assert.equal(document.querySelector('[data-nav="projects"]').getAttribute('aria-current'),'page');
+ install([all[0]]);
+ assert.equal(document.querySelector('main h1').textContent,'Page not found.');
+});
 
 test('publication versions provide the actual revised date and only published related links',()=>{const data=e('060','Version two');data.publication.version=2;data.publication.updatedAt='2026-11-07T12:00:00Z';data.connected=['999'];const html=makeArticle(data,[data])(false);assert.match(html,/Revised 7 Nov 2026/);assert.match(html,/Revised once/);assert.doesNotMatch(html,/#\/entry\/999/)});
 test('the homepage sketch uses the latest published figure with a working entry link',()=>{const data=e('061','Study in blue');data.type='Sketch';data.body.content=[{type:'figure',attrs:{src:'data:image/png;base64,aA==',alt:'A line study',caption:'A thought in two shapes',blockId:'fig',annotations:[]}}];const html=homepageSketch(data);assert.match(html,/Latest sketch/);assert.match(html,/#\/entry\/061/);assert.match(html,/alt="A line study"/)});

@@ -1,6 +1,6 @@
 (() => {
   // editor-src/folio.js
-  var prefix = (type) => ({ Essay: "e.", Note: "n.", Sketch: "s." })[type] || "e.";
+  var prefix = (type) => ({ Essay: "e.", Note: "n.", Sketch: "s.", Project: "p." })[type] || "e.";
   function folioNumber(entry2) {
     const number = entry2.folioNumbers?.[entry2.type] ?? (entry2.folioType && entry2.folioType !== entry2.type ? null : entry2.folioNumber);
     return Number.isSafeInteger(number) && number > 0 ? number : null;
@@ -31,14 +31,14 @@
     if (entry2.dirty) return "Unpublished changes";
     return connection2?.pages?.[entry2.entryId]?.currentIsLive ? "Live" : "Published";
   }
-  function firstImage(node) {
-    if (node?.type === "figure" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src)) return node.attrs.src;
+  function firstFigure(node) {
+    if (node?.type === "figure" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src)) return node.attrs;
     for (const child of node?.content || []) {
-      const src = firstImage(child);
-      if (src) return src;
+      const figure = firstFigure(child);
+      if (figure) return figure;
     }
-    return "";
   }
+  var firstImage = (node) => firstFigure(node)?.src || "";
   function libraryEntries(entries, { query = "", type = "all", state = "all", sort = "edited", trash = false } = {}, connection2) {
     const terms = normalize(query).trim().split(/\s+/).filter(Boolean), collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
     return entries.filter((entry2) => {
@@ -28373,6 +28373,18 @@ ${line}
   var currentLibraryView = () => libraryViews[libraryTrash ? "trash" : "library"];
   var previewStorageKey = "folio-draft-preview";
   var availableEntries = () => book.filter((e) => !e.trashedAt);
+  function updateLibraryCounts() {
+    const available = availableEntries();
+    $2("#write-tab").textContent = `Your writing \xB7 ${available.length}`;
+    $2("#workshop-count").textContent = available.filter((e) => e.type === "Project").length;
+  }
+  function updateDateField() {
+    const field = $2("#original-date"), project = entry.type === "Project", date = entry.originalDate || today();
+    field.type = project ? "month" : "date";
+    field.placeholder = project ? "YYYY-MM" : "";
+    field.value = project ? date.slice(0, 7) : date.length === 7 ? date + "-01" : date;
+    $2("#project-cover-hint").hidden = !project;
+  }
   var status = (t) => $2("#save-status").textContent = t;
   var notify = (t) => {
     $2("#toast").textContent = t;
@@ -28507,7 +28519,7 @@ ${line}
     $2("#preview").disabled = !e;
     $2("#export").disabled = !e;
     $2("#selection-menu").hidden = true;
-    $2("#write-tab").textContent = `Your writing \xB7 ${availableEntries().length}`;
+    updateLibraryCounts();
     if (!e) {
       $2("#body-editor").innerHTML = "";
       $2(".folio").textContent = "";
@@ -28555,7 +28567,6 @@ ${line}
     if (needsIDs) editor.view.dispatch(editor.state.tr.setNodeMarkup(0, void 0, { ...editor.state.doc.firstChild.attrs }));
     $2("#library-dialog").close();
     $2(".folio").textContent = folioLabel(e);
-    $2("#write-tab").textContent = `Your writing \xB7 ${availableEntries().length}`;
     $2(".rail-bottom p").textContent = "Your writing, taking shape.";
     $2(".status").textContent = e.dirty ? "UNPUBLISHED CHANGES" : e.publication?.status === "published" ? "PUBLISHED" : "DRAFT";
     $2("#publish").textContent = e.publication?.status === "published" ? "Update website \u2197" : "Publish \u2197";
@@ -28591,7 +28602,7 @@ ${line}
     $2("#unattached").innerHTML = detached.length ? `<h2>Unattached notes</h2><p class="hint">Their original passage was removed. Select a new passage to reattach.</p>` + detached.map((n) => `<p>${esc(n.text || "Dated revision")}</p><button data-reattach="${n.id}">Reattach</button><button data-delete-note="${n.id}">Delete</button>`).join("") : "";
     $2("#revision-list").innerHTML = Object.values(all).filter((n) => n.kind === "revision").map((n) => `<div class="revision-item"><button data-edit-revision="${n.id}">${n.mode === "addition" ? "Added" : "Revised"} ${esc(n.date)}</button><button data-delete-note="${n.id}">Remove</button></div>`).join("") || '<p class="hint">No dated passages yet.</p>';
     $2("#connected-list").innerHTML = (entry.connected || []).map((id) => book.find((x2) => x2.entryId === id && !x2.trashedAt)).filter(Boolean).map((e) => `<div class="connected-item"><small>${esc(folioLabel(e))}</small><p>${esc(e.title || "Untitled")}</p><button data-disconnect="${e.entryId}">Remove</button></div>`).join("") || '<p class="hint">No connected ideas yet.</p>';
-    $2("#original-date").value = entry.originalDate || today();
+    updateDateField();
     $2("#unpublish").hidden = entry.publication?.status !== "published";
     $2("#publication-status").textContent = entry.publication?.status === "published" ? `Published \xB7 version ${entry.publication.version}` : entry.publication?.status === "unpublished" ? "Withdrawn from the website" : "Not published";
     $2("#publication-events").innerHTML = (entry.publication?.events || []).slice().reverse().map((e) => `<p class="hint">${esc(e.kind)} \xB7 ${esc(new Date(e.at).toLocaleDateString())} \xB7 v${e.version}</p>`).join("");
@@ -28708,7 +28719,7 @@ ${line}
     for (const button of document.querySelectorAll("[data-library-type]")) button.setAttribute("aria-pressed", String(button.dataset.libraryType === type));
     $2("#library-count").textContent = items.length + " of " + group.length + (libraryTrash ? " entries in Trash" : " entries");
     $2("#library-items").innerHTML = items.map((e) => {
-      const title = e.title || "Untitled " + e.type.toLowerCase(), date = editedDate(e), state = entryState(e, connection), src = e.type === "Sketch" ? firstImage(e.body) : "";
+      const title = e.title || "Untitled " + e.type.toLowerCase(), date = editedDate(e), state = entryState(e, connection), src = ["Sketch", "Project"].includes(e.type) ? firstImage(e.body) : "";
       let excerpt = e.description || documentText(e.body);
       if (query && !(e.title + " " + e.description).toLowerCase().includes(query.toLowerCase())) {
         const body = documentText(e.body), at = body.toLowerCase().indexOf(query.toLowerCase());
@@ -28754,7 +28765,7 @@ ${line}
         entry = void 0;
         load(book.find((e) => e.entryId === result.notebook.activeId));
       }
-      $2("#write-tab").textContent = `Your writing \xB7 ${availableEntries().length}`;
+      updateLibraryCounts();
       $2("#delete-entry-dialog").close();
       renderLibrary();
       if (!$2("#library-dialog").open) $2("#library-dialog").showModal();
@@ -28774,7 +28785,7 @@ ${line}
   function newEntry(type) {
     libraryTrash = false;
     const now = (/* @__PURE__ */ new Date()).toISOString();
-    const e = migrate({ entryId: String(Math.max(41, ...book.map((x2) => Number(x2.entryId) || 0)) + 1).padStart(3, "0"), title: "", description: "", type, createdAt: now, editedAt: now, originalDate: today(), paragraphs: [], notes: [], connected: [], published: null }, parse);
+    const e = migrate({ entryId: String(Math.max(41, ...book.map((x2) => Number(x2.entryId) || 0)) + 1).padStart(3, "0"), title: "", description: "", type, createdAt: now, editedAt: now, originalDate: type === "Project" ? today().slice(0, 7) : today(), paragraphs: [], notes: [], connected: [], published: null }, parse);
     book.unshift(e);
     for (const menu of document.querySelectorAll(".new-entry-menu")) menu.open = false;
     load(e);
@@ -28831,33 +28842,29 @@ ${line}
     const entryRoute = "#/entry/" + encodeURIComponent(entry.entryId);
     if (published) {
       frame.src = "/published/" + entryRoute;
-      sessionStorage.removeItem(previewStorageKey);
+      delete window.folioDraftPreview;
       $2("#preview-source").textContent = "Published website \xB7 on this Mac";
     } else {
       const entries = book.filter((other) => !other.trashedAt && other.published && other.publication?.status === "published" && other.entryId !== entry.entryId).map((other) => other.published);
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const key = sessionStorage.key(i);
-          if (/^folio-preview-[a-f0-9]{32}$/.test(key)) sessionStorage.removeItem(key);
-        }
-        sessionStorage.setItem(previewStorageKey, JSON.stringify({ entries, entry: {
-          schemaVersion: entry.schemaVersion,
-          entryId: entry.entryId,
-          type: entry.type,
-          title: entry.title,
-          description: entry.description,
-          originalDate: entry.originalDate,
-          body: entry.body,
-          connected: entry.connected,
-          publication: entry.publication,
-          folioNumber: entry.folioNumber,
-          folioType: entry.folioType,
-          folioNumbers: entry.folioNumbers
-        } }));
-      } catch {
-        notify("This preview exceeds the browser\u2019s storage limit. Try a smaller image.");
-        return;
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key === previewStorageKey || /^folio-preview-[a-f0-9]{32}$/.test(key)) sessionStorage.removeItem(key);
       }
+      window.folioDraftPreview = { entries, entry: {
+        schemaVersion: entry.schemaVersion,
+        entryId: entry.entryId,
+        type: entry.type,
+        title: entry.title,
+        description: entry.description,
+        originalDate: entry.originalDate,
+        body: entry.body,
+        connected: entry.connected,
+        publication: entry.publication,
+        folioNumber: entry.folioNumber,
+        folioType: entry.folioType,
+        folioNumbers: entry.folioNumbers,
+        projectSlug: entry.projectSlug
+      } };
       frame.src = "site/?continuous=1&preview=" + previewStorageKey + "&v=" + Date.now() + entryRoute;
       $2("#preview-source").textContent = "Draft \xB7 website preview";
     }
@@ -28868,7 +28875,7 @@ ${line}
   function closePreview() {
     $2("#website-preview").hidden = true;
     $2("#website-frame").removeAttribute("src");
-    sessionStorage.removeItem(previewStorageKey);
+    delete window.folioDraftPreview;
     $2(".workspace").inert = false;
     editor.commands.focus();
   }
@@ -28916,13 +28923,21 @@ ${line}
   }
   $2("#entry-type").onchange = (e) => {
     entry.type = e.target.value;
+    if (entry.type !== "Project" && entry.originalDate?.length === 7) entry.originalDate += "-01";
+    updateDateField();
+    updateLibraryCounts();
     markDirty();
     $2(".folio").textContent = folioLabel(entry);
     editor.view.dispatch(editor.state.tr.setMeta("folio-number", true));
     sync();
   };
   $2("#original-date").onchange = (e) => {
-    entry.originalDate = e.target.value;
+    const value = e.target.value;
+    if (entry.type === "Project" && !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+      updateDateField();
+      return;
+    }
+    entry.originalDate = value;
     markDirty();
     sync();
   };
@@ -29080,6 +29095,11 @@ ${line}
   $2("#confirm-trash").onclick = () => changeEntry(deleteEntryId, deleteEntryAction);
   $2("#write-tab").onclick = library;
   $2("#show-library").onclick = library;
+  $2("#show-workshop").onclick = () => {
+    libraryTrash = false;
+    Object.assign(currentLibraryView(), { query: "", type: "Project", state: "all" });
+    library();
+  };
   $2("#library-search").oninput = (event) => {
     currentLibraryView().query = event.target.value;
     renderLibrary();

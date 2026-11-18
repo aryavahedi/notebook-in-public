@@ -23,6 +23,18 @@ class PublishingTest(unittest.TestCase):
   book={'entries':[entry()]};book['entries'][0]['title']='  '
   with self.assertRaises(ValueError):publish_entry(book,'041')
   self.assertNotIn('publication',book['entries'][0])
+ def test_projects_publish_with_an_independent_folio_and_legacy_address(self):
+  project={**entry('042'),'type':'Project','projectSlug':'tobacco-pipe-restoration','originalDate':'2024-02'}
+  book,_,_=publish_entry({'entries':[entry(),project]},'041')
+  book,published,_=publish_entry(book,'042')
+  self.assertEqual(published['published']['folioNumber'],1)
+  self.assertEqual(published['published']['projectSlug'],project['projectSlug'])
+  self.assertEqual(published['published']['originalDate'],'2024-02')
+  book['entries'].append({**project,'entryId':'043'})
+  with self.assertRaisesRegex(ValueError,'already uses'):
+   publish_entry(book,'043')
+  book,_,_=publish_entry(book,'042','unpublish')
+  self.assertEqual([snapshot['entryId'] for snapshot in catalogue(book)['entries']],['041'])
 class FolioTest(unittest.TestCase):
  def test_independent_sequences_and_drafts_do_not_consume_numbers(self):
   book={'entries':[entry(str(i)) for i in range(1,6)]}

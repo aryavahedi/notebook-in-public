@@ -130,3 +130,16 @@ dialog input[type=file]::file-selector-button,#restore-notebook::file-selector-b
 .library-entry-actions{position:absolute;right:12px;bottom:9px;display:flex;gap:8px;align-items:center}
 .library-entry-actions .library-entry-action{position:static}
 @media(max-width:620px){.library-entry-actions{right:10px;bottom:6px;gap:4px}}
+
+.rail .workshop-tab {
+ display: flex;
+ justify-content: space-between;
+ width: 100%;
+ margin-top: 5px;
+ text-align: left;
+ border-radius: var(--control-radius);
+}
+.rail .workshop-tab:hover, .rail .workshop-tab:focus-visible { background: var(--control-wash); color: var(--blue); }
+#workshop-count { color: var(--muted); }
+.library-types { flex-wrap: wrap; }
+.project-cover-hint { margin: 12px 0 0; }

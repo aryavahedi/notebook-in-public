@@ -12,10 +12,11 @@ export function entryState(entry,connection){
  if(entry.dirty)return 'Unpublished changes';
  return connection?.pages?.[entry.entryId]?.currentIsLive?'Live':'Published';
 }
-export function firstImage(node){
- if(node?.type==='figure'&&/^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src))return node.attrs.src;
- for(const child of node?.content||[]){const src=firstImage(child);if(src)return src}return '';
+export function firstFigure(node){
+ if(node?.type==='figure'&&/^data:image\/(png|jpeg|webp|gif);base64,/.test(node.attrs?.src))return node.attrs;
+ for(const child of node?.content||[]){const figure=firstFigure(child);if(figure)return figure}
 }
+export const firstImage=node=>firstFigure(node)?.src||'';
 export function libraryEntries(entries,{query='',type='all',state='all',sort='edited',trash=false}={},connection){
  const terms=normalize(query).trim().split(/\s+/).filter(Boolean),collator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
  return entries.filter(entry=>{

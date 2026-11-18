@@ -77,11 +77,11 @@ test('Trash permanent deletion names the entry, requires its confirmation, and r
  }finally{h.dom.window.close()}
 });
 
-test('repeated image previews clear their payload and do not retain earlier snapshots', async () => {
- const draft = entry();
+test('large project previews clear their in-memory snapshot and preserve other browser settings', async () => {
+ const draft = {...entry(), type:'Project', originalDate:'2024-02'};
  draft.body.content.unshift({
   type: 'figure',
-  attrs: {blockId: 'photo', src: 'data:image/jpeg;base64,' + 'A'.repeat(1_000_000), alt: 'Size fixture'},
+  attrs: {blockId: 'photo', src: 'data:image/jpeg;base64,' + 'A'.repeat(5_200_000), alt: 'Size fixture'},
  });
  const h = await boot(draft);
  try {
@@ -91,14 +91,33 @@ test('repeated image previews clear their payload and do not retain earlier snap
   for (let i = 0; i < 8; i++) {
    $('#preview').click();
    assert.equal($('#website-preview').hidden, false);
-   const url = new URL($('#website-frame').src);
-   const packet = JSON.parse(h.w.sessionStorage.getItem(url.searchParams.get('preview')));
+   const packet = h.w.folioDraftPreview;
    assert.equal(packet.entry.body.content[0].attrs.src, draft.body.content[0].attrs.src);
-   assert.deepEqual(packet.entries, []);
+   assert.equal(packet.entries.length, 0);
    $('#back-to-editor').click();
+   assert.equal(h.w.folioDraftPreview, undefined);
    assert.equal(h.w.sessionStorage.length, 1);
    assert.equal(h.w.sessionStorage.getItem('unrelated-setting'), 'keep');
   }
+ } finally { h.dom.window.close(); }
+});
+
+test('Workshop opens the projects library and New project starts an editable project', async () => {
+ const imported = {...entry('055'), type:'Project', title:'Tobacco Pipe Restoration', originalDate:'2024-02'};
+ const h = await boot([entry(), imported]);
+ try {
+  const $ = selector => h.w.document.querySelector(selector);
+  $('#show-workshop').click();
+  assert.equal($('[data-library-type="Project"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(h.w.document.querySelectorAll('.library-row').length, 1);
+  $('[data-load="055"]').click();
+  assert.equal($('#title').value, imported.title);
+  assert.equal($('#original-date').value, imported.originalDate);
+  assert.equal($('#project-cover-hint').hidden, false);
+  $('#quick-new-menu [data-new-entry="Project"]').click();
+  assert.equal($('#entry-type').value, 'Project');
+  assert.equal($('#title').value, '');
+  assert.equal(h.w.document.activeElement.id, 'title');
  } finally { h.dom.window.close(); }
 });
 
